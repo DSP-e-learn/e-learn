@@ -2,6 +2,7 @@ name = trainer workflow
 core = 7.x
 package = Features
 version = 7.x-1.0
+dependencies[] = certificate
 dependencies[] = commerce_cart
 dependencies[] = commerce_product_reference
 dependencies[] = entity
