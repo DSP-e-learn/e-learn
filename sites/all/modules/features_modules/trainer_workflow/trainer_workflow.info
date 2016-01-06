@@ -22,7 +22,6 @@ features[field_instance][] = node-course_product_display-body
 features[field_instance][] = node-course_product_display-field_product
 features[node][] = cour
 features[node][] = course_product_display
-features[payment_method][] = no_payment_required
 features[rules_config][] = rules_create_pd_and_product
 features[rules_config][] = rules_create_pd_and_product_for_a_course
 features[rules_config][] = rules_create_quiz_after_course_was_created
