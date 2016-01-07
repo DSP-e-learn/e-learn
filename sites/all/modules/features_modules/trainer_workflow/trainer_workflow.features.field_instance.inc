@@ -197,9 +197,44 @@ function trainer_workflow_field_default_field_instances() {
     ),
   );
 
+  // Exported field_instance: 'profile2-trainer-field_trainer_name'.
+  $field_instances['profile2-trainer-field_trainer_name'] = array(
+    'bundle' => 'trainer',
+    'default_value' => NULL,
+    'deleted' => 0,
+    'description' => '',
+    'display' => array(
+      'default' => array(
+        'label' => 'above',
+        'module' => 'text',
+        'settings' => array(),
+        'type' => 'text_default',
+        'weight' => 0,
+      ),
+    ),
+    'entity_type' => 'profile2',
+    'field_name' => 'field_trainer_name',
+    'label' => 'Name',
+    'required' => 1,
+    'settings' => array(
+      'text_processing' => 0,
+      'user_register_form' => FALSE,
+    ),
+    'widget' => array(
+      'active' => 1,
+      'module' => 'text',
+      'settings' => array(
+        'size' => 60,
+      ),
+      'type' => 'text_textfield',
+      'weight' => 1,
+    ),
+  );
+
   // Translatables
   // Included for use with string extractors like potx.
   t('Body');
+  t('Name');
   t('Product');
   t('Quizzzzzzzzzzzzzzzzzzzz');
 

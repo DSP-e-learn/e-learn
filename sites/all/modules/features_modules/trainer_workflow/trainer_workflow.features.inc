@@ -29,3 +29,20 @@ function trainer_workflow_node_info() {
   drupal_alter('node_info', $items);
   return $items;
 }
+
+/**
+ * Implements hook_default_profile2_type().
+ */
+function trainer_workflow_default_profile2_type() {
+  $items = array();
+  $items['trainer'] = entity_import('profile2_type', '{
+    "userCategory" : true,
+    "userView" : true,
+    "type" : "trainer",
+    "label" : "Trainer profile",
+    "weight" : "0",
+    "data" : { "registration" : 0 },
+    "rdf_mapping" : []
+  }');
+  return $items;
+}
