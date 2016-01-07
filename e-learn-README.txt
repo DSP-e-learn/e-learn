@@ -32,3 +32,4 @@ TODO
 
 Questions:
 - prise of the Course
+- 75% to pass the quiz?
