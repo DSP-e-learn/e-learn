@@ -3,7 +3,7 @@ E_LEARN README NOTES
 TODO
 
 - trainers and regular users
-	- different registration forms
+	+ different registration forms
 
 - user workflow
    - browse
@@ -22,7 +22,7 @@ TODO
 + grant access to Course after product that referensed it was bought
 + take access to Course after sertain period of time (48 hours for example, 5 min in development)
 
-- features
++ features
 - terms
 - theme
 
@@ -33,3 +33,4 @@ TODO
 Questions:
 - prise of the Course
 - 75% to pass the quiz?
+- shuld quiz be available after the access to Course has been revoked
