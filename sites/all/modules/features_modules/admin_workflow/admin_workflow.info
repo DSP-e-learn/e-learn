@@ -1,0 +1,12 @@
+name = admin_workflow
+core = 7.x
+package = Features
+version = 7.x-1.0
+dependencies[] = entity
+dependencies[] = features
+dependencies[] = rules
+dependencies[] = userone
+dependencies[] = userprotect
+features[features_api][] = api:2
+features[rules_config][] = rules_block_trainer_account_on_registration
+features[user_role][] = site_admin
