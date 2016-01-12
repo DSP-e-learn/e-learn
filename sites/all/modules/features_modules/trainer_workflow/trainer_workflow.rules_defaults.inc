@@ -10,8 +10,9 @@
 function trainer_workflow_default_rules_configuration() {
   $items = array();
   $items['rules_create_pd_and_product'] = entity_import('rules_config', '{ "rules_create_pd_and_product" : {
-      "LABEL" : "Create Product display and product after QUIZ was UPDATED",
+      "LABEL" : "RULE - Create Product display and product after QUIZ was UPDATED",
       "PLUGIN" : "reaction rule",
+      "ACTIVE" : false,
       "OWNER" : "rules",
       "TAGS" : [ "course", "quiz" ],
       "REQUIRES" : [ "rules" ],
@@ -22,6 +23,7 @@ function trainer_workflow_default_rules_configuration() {
             "PROVIDE" : { "entity_fetched" : { "entity_fetched" : "Fetched entity" } }
           }
         },
+        { "drupal_message" : { "message" : "ddddddddddddddddddddddddddddddd - [entity-fetched:0:title]" } },
         { "LOOP" : {
             "USING" : { "list" : [ "entity-fetched" ] },
             "ITEM" : { "list_item" : "Current list item" },
@@ -54,10 +56,11 @@ function trainer_workflow_default_rules_configuration() {
       "REQUIRES" : [ "rules" ],
       "USES VARIABLES" : {
         "node" : { "label" : "Node Course", "type" : "node" },
-        "list_of_products" : { "label" : "List of Products refer. Course", "type" : "list" }
+        "list_of_products" : { "label" : "List of Products that refer Node Course", "type" : "list" }
       },
       "IF" : [
-        { "list_count_is" : { "list" : [ "list-of-products" ], "op" : "\\u003C", "value" : "1" } }
+        { "list_count_is" : { "list" : [ "list-of-products" ], "op" : "\\u003C", "value" : "1" } },
+        { "entity_has_field" : { "entity" : [ "node" ], "field" : "field_category" } }
       ],
       "DO" : [
         { "entity_create" : {
@@ -93,6 +96,48 @@ function trainer_workflow_default_rules_configuration() {
             "data" : [ "entity-created-pd:field-product" ],
             "value" : [ "entity-created-product" ]
           }
+        },
+        { "data_set" : {
+            "data" : [ "entity-created-pd:field-pd-category" ],
+            "value" : [ "node:field-category" ]
+          }
+        }
+      ]
+    }
+  }');
+  $items['rules_create_pd_and_product_old'] = entity_import('rules_config', '{ "rules_create_pd_and_product_old" : {
+      "LABEL" : "RULE ------Create Product display and product after QUIZ was UPDATED",
+      "PLUGIN" : "reaction rule",
+      "OWNER" : "rules",
+      "TAGS" : [ "course", "quiz" ],
+      "REQUIRES" : [ "rules" ],
+      "ON" : { "node_update--quiz" : { "bundle" : "quiz" } },
+      "DO" : [
+        { "entity_query" : {
+            "USING" : { "type" : "node", "property" : "field_quiz", "value" : [ "node" ] },
+            "PROVIDE" : { "entity_fetched" : { "entity_fetched" : "Fetched entity" } }
+          }
+        },
+        { "LOOP" : {
+            "USING" : { "list" : [ "entity-fetched" ] },
+            "ITEM" : { "list_item" : "Current list item" },
+            "DO" : [
+              { "entity_query" : {
+                  "USING" : {
+                    "type" : "commerce_product",
+                    "property" : "field_course_reference",
+                    "value" : [ "list-item" ]
+                  },
+                  "PROVIDE" : { "entity_fetched" : { "entity_fetched_product_referensig_course" : "Fetched entity" } }
+                }
+              },
+              { "component_rules_create_pd_and_product_for_a_course" : {
+                  "node" : [ "list-item" ],
+                  "list_of_products" : [ "entity-fetched-product-referensig-course" ]
+                }
+              }
+            ]
+          }
         }
       ]
     }
@@ -103,7 +148,7 @@ function trainer_workflow_default_rules_configuration() {
       "OWNER" : "rules",
       "TAGS" : [ "course", "quiz" ],
       "REQUIRES" : [ "rules" ],
-      "ON" : { "node_insert--cour" : { "bundle" : "cour" } },
+      "ON" : { "node_insert--course" : { "bundle" : "course" } },
       "DO" : [
         { "entity_create" : {
             "USING" : {
