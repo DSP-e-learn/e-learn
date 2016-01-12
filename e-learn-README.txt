@@ -16,6 +16,7 @@ TODO
 - trainer workflow
    + create Course
    + create Quiz
+   - edit/delete Course
    - see published PD for the Course
    - reports
 
@@ -43,9 +44,11 @@ TODO
 
 
 Questions:
-- prise of the Course
+- price of the Course
 - 75% to pass the quiz?
 - shuld quiz be available after the access to Course has been revoked
+- should trainer be able to edit own Course and Quiz to course
+- should trainer be able to delete own Course 
 - fields for user/trainer profiles
 
 
