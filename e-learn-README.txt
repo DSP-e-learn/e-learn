@@ -15,7 +15,7 @@ E_LEARN README NOTES
 * trainer workflow
    + create Course
    + create Quiz
-   - edit/delete Course
+   - edit/delete Course ???
    - see published PD for the Course
    - reports
 
@@ -32,6 +32,7 @@ E_LEARN README NOTES
 * quiz
    - quiz creation - clear most of fields in edit tab
    - style Certificate
+   + questions browser - filter by current user
 
 
 + features
@@ -51,7 +52,7 @@ Questions:
 - shuld quiz be available after the access to Course has been revoked
 - should trainer be able to edit own Course and Quiz to course
 - should trainer be able to delete own Course 
-- fields for user/trainer profiles
++ fields for user/trainer profiles
 
 
 
