@@ -12,7 +12,8 @@ function elearn_form_alter(&$form, &$form_state, $form_id) {
 
     //hide quiz reference field
     if ($form_id == 'course_node_form') {
-	$form['field_quiz']['und']['#type']= 'hidden';
+	//$form['field_quiz']['und']['#type']= 'hidden';
+	$form['field_quiz']['und']['0']['target_id']['#type']= 'hidden';
     }
 
 }
