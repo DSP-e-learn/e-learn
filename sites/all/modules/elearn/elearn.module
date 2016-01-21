@@ -16,12 +16,11 @@ function elearn_form_alter(&$form, &$form_state, $form_id) {
         $form['field_quiz']['und']['0']['target_id']['#type']= 'hidden'; //autocompleate
     }
 
-    if ($form_id == 'quiz_node_form-') {
+    if ($form_id == 'quiz_node_form') {
        // var_dump($form['taking']);
         $form['remember_settings'] = array('#type' => 'hidden', '#value' => '1');
         
         //taking fieldgroup
-        $form['taking']['allow_resume'] = array( '#type' => 'hidden', '#value' => '1');
         $form['taking']['allow_skipping'] = array( '#type' => 'hidden', '#value' => '0');
         $form['taking']['allow_jumping'] = array( '#type' => 'hidden', '#value' => '0');
         $form['taking']['allow_change'] = array( '#type' => 'hidden', '#value' => '0');
@@ -36,29 +35,52 @@ function elearn_form_alter(&$form, &$form_state, $form_id) {
         $form['show_attempt_stats'] = array('#type' => 'hidden', '#value' => '1');        
         hide($form['taking'] ["multiple_takes"] );
        
-        unset ($form['taking']['review_options']['question'] ["#options"]);
-       // unset ($form['taking']['review_options']['question'] ["#default_value"]);
-        var_dump ($form['taking']['review_options']['question'] ["#default_value"]);
-        $form['taking']['review_options']['question'] ["#options"]['correct'] = "Whether correct";
-        $form['taking']['review_options']['question'] ["#options"]['score'] = "Score";
-        //$form['taking']['review_options']['question'] ["#default_value"]['correct'] = "";
-        //$form['taking']['review_options']['question'] ["#default_value"]['score'] = "score";
-                 var_dump($form['taking']['review_options']['question']);
+        hide ($form['taking']['review_options']);
+//       // unset ($form['taking']['review_options']['question'] ["#default_value"]);
+//        $form['taking']['review_options']['question'] ["#options"]['correct'] = "Whether correct";
+//        $form['taking']['review_options']['question'] ["#options"]['score'] = "Score";
+//        //$form['taking']['review_options']['question'] ["#default_value"]['correct'] = "";
+//        //$form['taking']['review_options']['question'] ["#default_value"]['score'] = "score";
+//
+//        unset ($form['taking']['review_options']['end'] ["#options"]);
+//        //unset ($form['taking']['review_options']['end'] ["#default_value"]);
+//        $form['taking']['review_options']['end'] ["#options"]['quiz_question_view_full'] = "Question: Full content";
+//        //$form['taking']['review_options']['end'] ["#default_value"]['quiz_question_view_full'] = "quiz_question_view_full";
+//        $form['taking']['review_options']['end'] ["#options"]['attempt'] = "Attempt";
+//        //$form['taking']['review_options']['end'] ["#default_value"]['attempt'] = "attempt";
+//        $form['taking']['review_options']['end'] ["#options"]['choice'] = "Choices";
+//        //$form['taking']['review_options']['end'] ["#default_value"]['choice'] = "choice";
 
-        unset ($form['taking']['review_options']['end'] ["#options"]);
-        //unset ($form['taking']['review_options']['end'] ["#default_value"]);
-        $form['taking']['review_options']['end'] ["#options"]['quiz_question_view_full'] = "Question: Full content";
-        //$form['taking']['review_options']['end'] ["#default_value"]['quiz_question_view_full'] = "quiz_question_view_full";
-        $form['taking']['review_options']['end'] ["#options"]['attempt'] = "Attempt";
-        //$form['taking']['review_options']['end'] ["#default_value"]['attempt'] = "attempt";
-        $form['taking']['review_options']['end'] ["#options"]['choice'] = "Choices";
-        //$form['taking']['review_options']['end'] ["#default_value"]['choice'] = "choice";
+        hide($form["resultoptions"] );
+        
+        $form['taking']["pass_rate"]=array("#type"=> "textfield", "#title"=>"Passing rate for Quiz (%)", "#default_value"=>$form['summaryoptions']["pass_rate"]["#default_value"], "#description"=>"Passing rate for this Quiz as a percentage score.", "#required"=> false);
+        hide($form['summaryoptions']);
 
-
+        
         $form['quiz_always'] = array('#type' => 'hidden', '#value' => '1');
         hide($form["quiz_availability"] );
-    }
 
+        
+        $form['#after_build'][] = 'elearn_quiz_node_form_after_build';
+    }
+    
+        if ($form_id == 'truefalse_node_form') {
+            hide($form['feedback']);   
+        }
+        
+        if ($form_id == 'multichoice_node_form') {
+            hide($form['feedback']);   
+        }
+
+}
+
+// afterbuild function
+function elearn_quiz_node_form_after_build($form) {
+    // We want to hide input formats 
+    // not needed after hide_formats module was enabled
+   // $form['body'][LANGUAGE_NONE][0]['format']['#prefix']= '<div style="display:none;">';
+    //$form['body'][LANGUAGE_NONE][0]['format']['#sufix']= '</div>';   
+    return $form;
 }
 
 
