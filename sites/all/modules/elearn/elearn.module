@@ -17,9 +17,12 @@ function elearn_form_alter(&$form, &$form_state, $form_id) {
     }
 
     if ($form_id == 'quiz_node_form') {
-       // var_dump($form['taking']);
         $form['remember_settings'] = array('#type' => 'hidden', '#value' => '1');
         
+        //Certificate fieldgroup
+        hide($form['certificate']);
+        $form['certificate']['map']['manual']['manual'] = array("#type" => 'hidden', "#value" => 46);
+
         //taking fieldgroup
         $form['taking']['allow_skipping'] = array( '#type' => 'hidden', '#value' => '0');
         $form['taking']['allow_jumping'] = array( '#type' => 'hidden', '#value' => '0');
@@ -34,43 +37,42 @@ function elearn_form_alter(&$form, &$form_state, $form_id) {
         $form['takes'] = array('#type' => 'hidden', '#value' => '3');
         $form['show_attempt_stats'] = array('#type' => 'hidden', '#value' => '1');        
         hide($form['taking'] ["multiple_takes"] );
-       
-        hide ($form['taking']['review_options']);
-//       // unset ($form['taking']['review_options']['question'] ["#default_value"]);
+
+        hide ($form['taking']['review_options']['question'] );
 //        $form['taking']['review_options']['question'] ["#options"]['correct'] = "Whether correct";
 //        $form['taking']['review_options']['question'] ["#options"]['score'] = "Score";
 //        //$form['taking']['review_options']['question'] ["#default_value"]['correct'] = "";
 //        //$form['taking']['review_options']['question'] ["#default_value"]['score'] = "score";
 //
-//        unset ($form['taking']['review_options']['end'] ["#options"]);
-//        //unset ($form['taking']['review_options']['end'] ["#default_value"]);
-//        $form['taking']['review_options']['end'] ["#options"]['quiz_question_view_full'] = "Question: Full content";
-//        //$form['taking']['review_options']['end'] ["#default_value"]['quiz_question_view_full'] = "quiz_question_view_full";
-//        $form['taking']['review_options']['end'] ["#options"]['attempt'] = "Attempt";
-//        //$form['taking']['review_options']['end'] ["#default_value"]['attempt'] = "attempt";
-//        $form['taking']['review_options']['end'] ["#options"]['choice'] = "Choices";
-//        //$form['taking']['review_options']['end'] ["#default_value"]['choice'] = "choice";
-
+        $form['taking']['review_options']['#description'] = "Control what feedback appears at the end.";
+        unset ($form['taking']['review_options']['end'] ["#options"]);
+        $form['taking']['review_options']['end'] ["#options"]['quiz_question_view_full'] = "Question: Full content";
+        $form['taking']['review_options']['end'] ["#options"]['attempt'] = "Attempt";
+        $form['taking']['review_options']['end'] ["#options"]['choice'] = "Choices";
+        $form['taking']['review_options']['end'] ["#options"]['correct'] = "Whether correct";
+        $form['taking']['review_options']['end'] ["#options"]['score'] = "Score";
+        
+        //Result feedback fieldgroup
         hide($form["resultoptions"] );
         
+        //Pass/Fail options fieldgroup
         $form['taking']["pass_rate"]=array("#type"=> "textfield", "#title"=>"Passing rate for Quiz (%)", "#default_value"=>$form['summaryoptions']["pass_rate"]["#default_value"], "#description"=>"Passing rate for this Quiz as a percentage score.", "#required"=> false);
         hide($form['summaryoptions']);
-
-        
+    
+        //Availability options fieldgroup
         $form['quiz_always'] = array('#type' => 'hidden', '#value' => '1');
         hide($form["quiz_availability"] );
-
         
         $form['#after_build'][] = 'elearn_quiz_node_form_after_build';
     }
     
-        if ($form_id == 'truefalse_node_form') {
-            hide($form['feedback']);   
-        }
-        
-        if ($form_id == 'multichoice_node_form') {
-            hide($form['feedback']);   
-        }
+    if ($form_id == 'truefalse_node_form') {
+        hide($form['feedback']);   
+    }
+
+    if ($form_id == 'multichoice_node_form') {
+        hide($form['feedback']);   
+    }
 
 }
 
