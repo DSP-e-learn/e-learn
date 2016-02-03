@@ -1,0 +1,10 @@
+core          = "7.x"
+dependencies[] = taxonomy_menu
+dependencies[] = i18n
+dependencies[] = i18n_menu
+description   = "Multi-language support to taxonomy menus using i18n_taxonomy or entity translation."
+name          = "Taxonomy menu translation"
+package       = Taxonomy menu
+
+; Tests
+files[] = tests/taxonomy_menu_i18n.test

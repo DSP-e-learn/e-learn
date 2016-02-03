@@ -1,0 +1,595 @@
+<?php
+/**
+ * @file
+ * taxonomy_menu_i18n module
+ */
+
+/**
+ * Implements hook_taxonomy_menu_vocabulary_settings().
+ */
+function taxonomy_menu_i18n_taxonomy_menu_vocabulary_settings() {
+  // Add translation mode setting to taxonomy menu.
+  $defaults = array(
+    'i18n_mode' => I18N_MODE_NONE,
+  );
+  return $defaults;
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function taxonomy_menu_i18n_form_taxonomy_form_vocabulary_alter(&$form, &$form_state) {
+  if (!isset($form['taxonomy_menu'])) {
+    return;
+  }
+  // Add AJAX callback to menu location.
+  $form['taxonomy_menu']['vocab_parent']['#ajax'] = array(
+    'callback' => 'taxonomy_menu_i18n_ajax_set_parent',
+    'wrapper' => 'taxonomy-menu-i18n-wrapper',
+  );
+
+  // Get selected (or default) menu location.
+  if (isset($form_state['values']['taxonomy_menu']['vocab_parent'])) {
+    $menu_location = $form_state['values']['taxonomy_menu']['vocab_parent'];
+  }
+  elseif (isset($form['taxonomy_menu']['vocab_parent']['#default_value'])) {
+    $menu_location = $form['taxonomy_menu']['vocab_parent']['#default_value'];
+  }
+
+  if (!empty($menu_location)) {
+    // Get selected menu location.
+    // @see taxonomy_menu_vocab_submit()
+    list($menu_name, $vocab_parent) = explode(':', $menu_location);
+  }
+
+  $vid = (isset($form['vid']) && $form['vid']['#value']) ? $form['vid']['#value'] : 0;
+
+  $form['taxonomy_menu']['i18n'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Translation options'),
+    '#collapsible' => TRUE,
+    '#description' => t('Synchronize term and menu translations.'),
+    '#prefix' => '<div id="taxonomy-menu-i18n-wrapper">',
+    '#suffix' => '</div>',
+  );
+
+  // Get translation mode from menu. This variable is used to determine which
+  // translation modes are available for the taxonomy menu.
+  // @see _taxonomy_menu_i18n_get_translation_options()
+  $menu_mode = isset($menu_name) ? i18n_menu_mode($menu_name) : I18N_MODE_NONE;
+
+  $options = _taxonomy_menu_i18n_get_translation_options($menu_mode);
+  $form['taxonomy_menu']['i18n']['i18n_mode'] = array(
+    '#title' => t('Translation mode'),
+    '#type' => 'radios',
+    '#options' => $options,
+    '#default_value' => taxonomy_menu_variable_get('i18n_mode', $vid, ''),
+  );
+
+  // If disabled is only option, show notice.
+  if (count($options) == 1) {
+    $form['taxonomy_menu']['i18n']['i18n_mode']['#disabled'] = TRUE;
+    $form['taxonomy_menu']['i18n']['i18n_mode']['#description'] = t('<i>You need to enable translation for the selected menu to use this feature.</i>');
+    $form['taxonomy_menu']['i18n']['i18n_mode']['#default_value'] = I18N_MODE_NONE;
+  }
+
+  // Add a custom validation function.
+  array_unshift($form['#validate'], 'taxonomy_menu_i18n_vocabulary_validate');
+}
+
+/**
+ * AJAX callback for settings form.
+ */
+function taxonomy_menu_i18n_ajax_set_parent($form, $form_state) {
+  return $form['taxonomy_menu']['i18n'];
+}
+
+/**
+ * Validation handler for taxonomy_menu_i18n vocabulary settings.
+ */
+function taxonomy_menu_i18n_vocabulary_validate($form, &$form_state) {
+  // Skip validation if no values are submitted (i18n is not supported
+  // for this vocabulary).
+  if (isset($form_state['values']['taxonomy_menu']['i18n'])) {
+    $i18n_mode = $form_state['values']['taxonomy_menu']['i18n']['i18n_mode'];
+    $menu_location = $form_state['values']['taxonomy_menu']['vocab_parent'];
+    if (!empty($menu_location)) {
+      list($menu_name, $vocab_parent) = explode(':', $menu_location);
+      $menu_mode = isset($menu_name) ? i18n_menu_mode($menu_name) : I18N_MODE_NONE;
+      $options = _taxonomy_menu_i18n_get_translation_options($menu_mode);
+    }
+  }
+}
+
+/**
+ * Implements hook_taxonomy_menu_link_alter().
+ */
+function taxonomy_menu_i18n_taxonomy_menu_link_alter(&$menu_link, $term, $menu_name) {echo "ddddd";exit;
+  // If menu link has been hidden by i18n_menu, un-hide item to avoid
+  // saving menu links as hidden when reordering vocabulary.
+  // @see i18n_menu_translated_menu_link_alter()
+  // @see _i18n_menu_link_process()
+  if (!empty($menu_link['i18n_menu']) && $menu_link['hidden']) {
+    $menu_link['hidden'] = 0;
+  }
+
+  if ($menu_i18n_mode = taxonomy_menu_variable_get('i18n_mode', $term->vid, '')) {
+    if (!$translations = taxonomy_menu_i18n_get_translations($term)) {
+      // No translations, bail.
+      return;
+    }
+
+    // Prepare menu link for translation.
+    $menu_link['options']['alter'] = TRUE;
+    // Needs to be customized to be recognized
+    // by translation sets.
+    $menu_link['customized'] = 1;
+    switch ($menu_i18n_mode) {
+      case I18N_MODE_LOCALIZE:
+        // If mode is set to "localize", menu item needs to be language neutral
+        // to be displayed in all languages.
+        $menu_link['language'] = LANGUAGE_NONE;
+
+        // Set source language according to string translation setting, in order
+        // to avoid incorrect default language menu items when saving term
+        // translations.
+        // @todo: What to do if source translation is unavailable?
+        $default_language = i18n_string_source_language();
+        if (isset($translations['data'][$default_language])) {
+          $default_translation = _taxonomy_menu_i18n_format_link_name($translations['data'][$default_language], $term);
+          $menu_link['link_title'] = $default_translation['name'];
+          $menu_link['options']['attributes']['title'] = $default_translation['title'];
+        }
+        $language = LANGUAGE_NONE;
+        break;
+
+      case I18N_MODE_TRANSLATE:
+        // If mode is set to "translate", the source menu link will be
+        // the original language of the term.
+        $default_translation = _taxonomy_menu_i18n_format_link_name($translations['data'][$translations['original']], $term);
+        $menu_link['language'] = $translations['original'];
+        $menu_link['link_title'] = $default_translation['name'];
+        $menu_link['options']['attributes']['title'] = $default_translation['title'];
+        // Get language from old term if updating to prevent creating
+        // duplicates when switching term language.
+        $language_changed = isset($term->original->language) && ($term->language != $term->original->language);
+        $language = $language_changed ? $term->original->language : $menu_link['language'];
+        break;
+    }
+
+    // Update menu parent if menu is not flat.
+    if (!taxonomy_menu_variable_get('flat', $term->vid, 0)) {
+      $menu_link['plid'] = taxonomy_menu_term_get_plid($term, $menu_link['language']);
+    }
+
+    if ($mlid = _taxonomy_menu_get_mlid($term->tid, $term->vid, $language)) {
+      // Update language in db if changed.
+      if (!empty($language_changed)) {
+        db_update('taxonomy_menu')
+          ->fields(array(
+            'language' => $menu_link['language'],
+          ))
+          ->condition('mlid', $mlid)
+          ->condition('language', $language)
+          ->execute();
+      }
+      $menu_link['mlid'] = $mlid;
+    }
+
+    // Add data to menu link array for later use in
+    // taxonomy_menu_i18n_taxonomy_menu_save().
+    $menu_link['taxonomy_menu'] = array(
+      'update' => $mlid,
+      'menu_name' => $menu_name,
+      'term' => $term,
+      'translations' => $translations,
+      'i18n_mode' => $menu_i18n_mode,
+    );
+    if ($menu_link['link_title'] == NULL) {
+      $menu_link['link_title'] = 'error';
+    }
+  }
+}
+
+/**
+ * Implements hook_taxonomy_menu_save().
+ */
+function taxonomy_menu_i18n_taxonomy_menu_save($term, $menu_link, $mlid) {
+  // Translation data is saved in the menu link.
+  if (isset($menu_link['taxonomy_menu']['translations'])) {
+    // Localize or translate menu item.
+    switch ($menu_link['taxonomy_menu']['i18n_mode']) {
+      case I18N_MODE_LOCALIZE:
+        // Localize link and description using i18n_string.
+        taxonomy_menu_i18n_taxonomy_menu_localize_item($menu_link['taxonomy_menu']['translations'], $menu_link, $mlid);
+        break;
+
+      case I18N_MODE_TRANSLATE:
+        // Create translation set and translate for available languages.
+        taxonomy_menu_i18n_taxonomy_menu_translate_item($menu_link['taxonomy_menu']['translations'], $menu_link, $mlid);
+        break;
+    }
+  }
+}
+
+/**
+ * Implements hook_entity_translation_delete().
+ */
+function taxonomy_menu_i18n_entity_translation_delete($entity_type, $entity, $langcode) {
+  if ($entity_type == 'taxonomy_term') {
+    $vid = $entity->vid;
+    if ($mlid = _taxonomy_menu_get_mlid($entity->tid, $vid)) {
+      // Erase the menu item translation in the deleted term language.
+      $i18n_title = $i18n_description = array('menu', 'item', $mlid);
+      array_push($i18n_title, 'title');
+      array_push($i18n_description, 'description');
+      i18n_string_translation_update($i18n_title, '', $langcode);
+      i18n_string_translation_update($i18n_description, '', $langcode);
+    }
+    elseif ($mlid = _taxonomy_menu_get_mlid($entity->tid, $vid, $langcode)) {
+      // Delete translation.
+      menu_link_delete($mlid);
+    }
+  }
+}
+
+/**
+ * Implements hook_entity_translation_update().
+ */
+function taxonomy_menu_i18n_entity_translation_update($entity_type, $entity, $translation, $values = array()) {
+  if ($entity_type == 'taxonomy_term') {
+    $original_language = $entity->original->translations->original;
+    $new_language = $translation['language'];
+
+    // If translation has changed from or to language neutral, the original menu item
+    // needs to be removed.
+    if ($original_language == LANGUAGE_NONE || $new_language == LANGUAGE_NONE) {
+      if ($mlid = _taxonomy_menu_get_mlid($entity->tid, $entity->vid, $original_language)) {
+        _taxonomy_menu_delete_item($entity->vid, $entity->tid);
+        menu_link_delete($mlid);
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_menu_link_delete().
+ */
+function taxonomy_menu_i18n_menu_link_delete($link) {
+  // Delete menu link translations.
+  if ($link['module'] == 'taxonomy_menu' && isset($link['i18n_tsid'])) {
+    if ($translation_set = i18n_translation_set_load($link['i18n_tsid'])) {
+      foreach ($translation_set->get_objects() as $translation) {
+        $mlid = $translation->get_key();
+        if ($mlid = $link['mlid']) {
+          continue;
+        }
+        menu_link_delete($mlid);
+      }
+      $translation_set->delete();
+    }
+  }
+}
+
+/**
+ * Get translations for a term.
+ *
+ * @param object $term
+ *   The term to find translations for.
+ *
+ * @return array
+ *   Array of translated term data. An entry contains (each truncated to max.
+ *   100 characters):
+ *   -original: Original language key.
+ *   -data: Array of translations, keyed by language identifier:
+ *     -name: Translated term name.
+ *     -title: Term description (used as menu title).
+ */
+function taxonomy_menu_i18n_get_translations($term) {
+  // Return entity translations if available, fallback to taxonomy_i18n.
+  if ($translations = taxonomy_menu_i18n_get_entity_translations($term)) {
+    return $translations;
+  }
+  return taxonomy_menu_i18n_get_i18n_translations($term);
+}
+
+/**
+ * Get translations of a term using entity translation.
+ *
+ * @param object $term
+ *   The term to find translations for.
+ *
+ * @return array
+ *   Array of translated term data. An entry contains (each truncated to max.
+ *   100 characters):
+ *   -original: Original language key.
+ *   -data: Array of translations, keyed by language identifier:
+ *     -name: Translated term name.
+ *     -title: Term description (used as menu title).
+ */
+function taxonomy_menu_i18n_get_entity_translations($term) {
+  // Entity translations terms. Translations rely on the Title module
+  // (name_field) for term names. Link titles are generated from the term's
+  // description_field (also Title module).
+  $entity_translation_enabled = module_exists('entity_translation') && entity_translation_enabled('taxonomy_term');
+  $translations_exist = $entity_translation_enabled && isset($term->translations->data) && isset($term->name_field);
+  // Generate array of translations.
+  if ($translations_exist) {
+    $langcodes = array_keys($term->translations->data);
+    $translations = array(
+      'original' => $term->translations->original,
+      'data' => array(),
+    );
+    foreach ($langcodes as $langcode) {
+      if (isset($term->name_field[$langcode])) {
+        // Load translated name and title.
+        $name = _taxonomy_menu_i18n_get_field_translation($term, 'name_field', $langcode);
+        $title = isset($term->description_field[$langcode]) ? _taxonomy_menu_i18n_get_field_translation($term, 'description_field', $langcode) : $name;
+
+        $translation = array(
+          'name' => $name,
+          'title' => $title,
+        );
+        // Format data and add to translations array.
+        $translations['data'][$langcode] = _taxonomy_menu_i18n_format_link_name($translation, $term);
+      }
+    }
+    if (count($translations['data'])) {
+      return $translations;
+    }
+  }
+  return FALSE;
+}
+
+/**
+ * Get translations of a term using i18n_taxonomy.
+ *
+ * @param object $term
+ *   The term to find translations for.
+ *
+ * @return array
+ *   Array of translated term data. An entry contains (each truncated to max.
+ *   100 characters):
+ *   -original: Original language key.
+ *   -data: Array of translations, keyed by language identifier:
+ *     -name: Translated term name.
+ *     -title: Term description (used as menu title).
+ */
+function taxonomy_menu_i18n_get_i18n_translations($term) {
+  if (module_exists('i18n_taxonomy')) {
+    switch (i18n_taxonomy_vocabulary_mode($term->vid)) {
+      case I18N_MODE_LOCALIZE:
+        // Get default language from term object. Titles are disabled for
+        // consistency, as term descriptions cannot be translated using
+        // string translation(?). Using I18N_MODE_LOCALIZE, $term->language
+        // should always be LANGUAGE_NONE.
+        $translations = array(
+          'original' => $term->language,
+          'data' => array(
+            $term->language => array(
+              'name' => $term->name,
+              'title' => '',
+            ),
+          ),
+        );
+        $i18n_string_conditions = array(
+          'taxonomy',
+          'term',
+          array($term->tid),
+          array('name'),
+        );
+        // Find translated term names and add to translations array.
+        if ($i18n_strings = i18n_string_translation_search($i18n_string_conditions)) {
+          $i18n_strings = reset($i18n_strings);
+          foreach ($i18n_strings->translations as $langcode => $name) {
+            $translations['data'][$langcode] = array(
+              'name' => $name,
+              'title' => '',
+            );
+          }
+        }
+        return $translations;
+
+      case I18N_MODE_LANGUAGE:
+      case I18N_MODE_TRANSLATE:
+        $translations = array(
+          'original' => $term->language,
+          'data' => array(
+            $term->language => array(
+              'name' => $term->name,
+              'title' => '',
+            ),
+          ),
+        );
+        if ($translation_set = i18n_translation_set_load($term->i18n_tsid)) {
+          foreach ($translation_set->get_translations() as $langcode => $i18n_object) {
+            $translations['data'][$langcode] = array(
+              'name' => $i18n_object->name,
+              'title' => $i18n_object->description,
+            );
+          }
+        }
+        return $translations;
+    }
+  }
+  return FALSE;
+}
+
+/**
+ * Localize menu item.
+ *
+ * @param array $translations
+ *   Array of translated menu items, keyed by language.
+ * @param array $menu_link
+ *   The menu link that has been saved.
+ * @param int $mlid
+ *   The identifier of the newly created menu item.
+ */
+function taxonomy_menu_i18n_taxonomy_menu_localize_item($translations, $menu_link, $mlid) {
+  // Generate i18n_string keys.
+  $i18n_title = $i18n_desc = array('menu', 'item', $mlid);
+  array_push($i18n_title, 'title');
+  array_push($i18n_desc, 'description');
+
+  // Remove existing string translations.
+  i18n_string_remove($i18n_title);
+  i18n_string_remove($i18n_desc);
+
+  // Add translations for available languages.
+  $source_language = i18n_string_source_language();
+  foreach ($translations['data'] as $langcode => $data) {
+    if ($langcode == $source_language) {
+      // Skip source language, this exists.
+      continue;
+    }
+    i18n_string_translation_update($i18n_title, $data['name'], $langcode, $menu_link['link_title']);
+    i18n_string_translation_update($i18n_desc, $data['title'], $langcode, $menu_link['options']['attributes']['title']);
+  }
+}
+
+/**
+ * Translate menu item.
+ *
+ * @param array $translations
+ *   Array of translated menu items, keyed by language.
+ * @param array $menu_link
+ *   The menu link that has been saved.
+ * @param int $mlid
+ *   The identifier of the newly created menu item.
+ */
+function taxonomy_menu_i18n_taxonomy_menu_translate_item($translations, $menu_link, $mlid) {
+  // Get settings from menu link.
+  $term = $menu_link['taxonomy_menu']['term'];
+  $menu_name = $menu_link['taxonomy_menu']['menu_name'];
+
+  // Dummy term not to mess with the cached term object.
+  $dummy_term = clone $term;
+
+  // Array of translated menu links.
+  $items = array(
+    $menu_link['language'] => $menu_link,
+  );
+
+  // Create menu links for languages.
+  foreach ($translations['data'] as $langcode => $data) {
+    if ($langcode == $translations['original']) {
+      // Skip source language, this exists.
+      continue;
+    }
+
+    // Create new menu item. Using taxonomy_menu_menu_link_prepare to
+    // mimic parent module behavior.
+    $dummy_term->language = $langcode;
+    $dummy_term->name = $data['name'];
+    $dummy_term->description = $data['title'];
+    $translated_menu_link = taxonomy_menu_menu_link_prepare($dummy_term, $menu_name);
+    $translated_menu_link['customized'] = 1;
+
+    if ($mlid = _taxonomy_menu_get_mlid($term->tid, $term->vid, $langcode)) {
+      // Delete existing menu item from db.
+      // @todo Skip insert instead. Will mlid change once created?
+      db_delete('taxonomy_menu')
+        ->condition('mlid', $mlid)
+        ->condition('language', $langcode)
+        ->execute();
+    }
+    // Save link and add translation info to DB.
+    menu_link_save($translated_menu_link);
+    _taxonomy_menu_insert_menu_item($translated_menu_link['mlid'], $term->tid, $term->vid, $langcode);
+    $items[$langcode] = $translated_menu_link;
+  }
+
+  // Load translation set.
+  $translation_set = i18n_translation_object('menu_link', $menu_link, TRUE);
+  // Save translation set.
+  $translation_set->reset_translations($items);
+  $translation_set->save(TRUE);
+}
+
+/**
+ * Get the value of a field in a specified language.
+ *
+ * @param object $term
+ *   the taxonomy term.
+ * @param string $field_name
+ *   the field name of the taxonomy term where to get the value.
+ * @param string $langcode
+ *   the language code of the value to get.
+ *
+ * @return string
+ *   Rendered plain-text field value.
+ */
+function _taxonomy_menu_i18n_get_field_translation($term, $field_name, $langcode) {
+  // Field display settings.
+  $display = array(
+    'label' => 'hidden',
+    'type' => 'text_plain',
+  );
+  if ($field_item = field_get_items('taxonomy_term', $term, $field_name, $langcode)) {
+    $field_value = field_view_value('taxonomy_term', $term, $field_name, $field_item[0], $display, $langcode);
+    $field_rendered = render($field_value);
+    return trim(truncate_utf8($field_rendered, 100));
+  }
+  return '';
+}
+
+/**
+ * Get available translation options for a vocabulary.
+ *
+ * @param int $menu_mode
+ *   Menu translation mode.
+ *
+ * @return array
+ *   Array of available translation options.
+ */
+function _taxonomy_menu_i18n_get_translation_options($menu_mode) {
+  $options = array(
+    I18N_MODE_NONE => t('Disabled. Menu items will not be translated.'),
+  );
+  // Get translation mode of selected menu.
+  switch ($menu_mode) {
+    // "Translate and localize"
+    case I18N_MODE_MULTIPLE:
+      $options += array(
+        I18N_MODE_LOCALIZE => t('Localize. Menu items will be localized using string translation.'),
+        I18N_MODE_TRANSLATE => t('Translate. Term translations will be created as translated menu items. Missing translations will not be available in the menu.'),
+      );
+      break;
+
+    // @todo Other modes?
+  }
+  return $options;
+}
+
+/**
+ * Format menu link similar to taxonomy_menu_menu_link_prepare.
+ *
+ * @param string $translation
+ *   Translated info array.
+ *   -name: Translated term name.
+ *   -title: Term description (used as menu title).
+ * @param object $term
+ *   The source term.
+ *
+ * @return array
+ *   Formatted menu link name and title:
+ *   -name: Formatted translated term name.
+ *   -title: Term description (if enabled).
+ *
+ * @see taxonomy_menu_menu_link_prepare()
+ */
+function _taxonomy_menu_i18n_format_link_name($translation, $term) {
+  // Unimplemented feature.
+  $recursive_count = FALSE;
+  $display_count = taxonomy_menu_variable_get('display_num', $term->vid, FALSE);
+  $hide_term = taxonomy_menu_variable_get('hide_empty_terms', $term->vid, FALSE);
+  if ($display_count AND $nodes_count = taxonomy_menu_term_count_nodes($term->tid, $recursive_count)) {
+    $translation['name'] .= ' (' . $nodes_count . ')';
+  }
+
+  // Clear title if disabled.
+  if (!taxonomy_menu_variable_get('display_title_attr', $term->vid, TRUE)) {
+    $translation['title'] = '';
+  }
+  return $translation;
+}

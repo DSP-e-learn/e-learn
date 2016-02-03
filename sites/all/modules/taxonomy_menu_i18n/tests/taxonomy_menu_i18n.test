@@ -1,0 +1,421 @@
+<?php
+/**
+ * @file
+ * Tests for taxonomy_menu_i18n.module.
+ */
+
+
+/**
+ * Base class for testing taxonomy menu translations.
+ */
+abstract class TaxonomyMenui18nTestCase extends Drupali18nTestCase {
+
+  protected $menu;
+  protected $vocabulary;
+  protected $user;
+  protected $taxonomy_menu_i18n_mode;
+
+  /**
+   * Common setUp.
+   */
+  public function setUp() {
+    $args = func_get_args();
+    $dependencies = func_get_args();
+    $dependencies[] = 'taxonomy_menu_i18n';
+    call_user_func_array(array('parent', 'setUp'), $dependencies);
+
+    // Add languages.
+    parent::setUpLanguages();
+
+    // Create admin user.
+    $this->admin_user = $this->drupalCreateUser(array(
+      'administer taxonomy',
+      'administer menu',
+      'administer languages',
+    ));
+    $this->drupalLogin($this->admin_user);
+
+    // Enable i18n for navigation menu.
+    $this->setUpMenu();
+
+    // Create vocabulary, enable taxonomy menu.
+    $this->setUpTaxonomy();
+
+    // Logout user.
+    $this->drupalLogout();
+  }
+
+  /**
+   * Set up default navigation menu for taxonomy menu i18n.
+   */
+  private function setUpMenu($menu_name = 'navigation') {
+    // Create menu with I18N_MODE_MULTIPLE translation mode
+    // (Currently only menu translation mode supported by this module).
+    $edit = array(
+      'i18n_mode' => I18N_MODE_MULTIPLE,
+    );
+    $this->drupalPost("admin/structure/menu/manage/$menu_name/edit", $edit, t('Save'));
+    $this->assertRaw('Your configuration has been saved.', 'Menu configuration saved.');
+    $this->menu = menu_load($menu_name);
+
+    $this->drupalGet("admin/structure/menu/manage/$menu_name/edit");
+    $i18n_enabled = $this->menu['i18n_mode'] == I18N_MODE_MULTIPLE;
+    $this->assertTrue($i18n_enabled, 'Menu translation mode enabled.');
+  }
+
+  /**
+   * Create a vocabulary.
+   */
+  private function setUpTaxonomy() {
+    $vocabulary_settings = array(
+      'i18n_mode' => I18N_MODE_NONE,
+      'name' => $this->randomName(),
+      'description' => $this->randomName(),
+      'machine_name' => drupal_strtolower($this->randomName()),
+      'help' => '',
+      'weight' => mt_rand(0, 10),
+    );
+    $this->vocabulary = (object) $vocabulary_settings;
+    taxonomy_vocabulary_save($this->vocabulary);
+
+    // Enable taxonomy menu for this menu's root item.
+    $edit = array(
+      'taxonomy_menu[vocab_parent]' => $this->menu['menu_name'] . ':0',
+      'taxonomy_menu[sync]' => TRUE,
+    );
+    $this->drupalPost('admin/structure/taxonomy/' . $this->vocabulary->machine_name . '/edit', $edit, t('Save'));
+  }
+
+  /**
+   * Helper to switch i18n_mode for vocabulary.
+   */
+  public function switchVocabularyI18nMode($i18n_mode) {
+    $this->vocabulary->i18n_mode = $i18n_mode;
+    taxonomy_vocabulary_save($this->vocabulary);
+    // Refresh and clean up i18n strings.
+    i18n_string_refresh_group('taxonomy', TRUE);
+  }
+
+  /**
+   * Helper to enable taxonomy menu and set its i18n_mode.
+   */
+  public function setTaxonomyMenuI18nMode($i18n_mode) {
+    // Enable translation using selected mode.
+    $edit = array(
+      'taxonomy_menu[i18n][i18n_mode]' => $i18n_mode,
+    );
+    $this->drupalPost('admin/structure/taxonomy/' . $this->vocabulary->machine_name . '/edit', $edit, t('Save'));
+
+    // Get i18n settings for taxonomy menu.
+    $var_name = _taxonomy_menu_build_variable('i18n_mode', $this->vocabulary->vid);
+    $var_mode = variable_get($var_name, FALSE);
+
+    $this->taxonomy_menu_i18n_mode = $i18n_mode;
+    $this->assertEqual($i18n_mode, $var_mode, 'Taxonomy menu 18n mode updated.');
+  }
+}
+
+/**
+ * Tests for entity translation.
+ */
+class TaxonomyMenui18nEntityTranslationTestCase extends TaxonomyMenui18nTestCase {
+  /**
+   * Test information.
+   */
+  public static function getInfo() {
+    return array(
+      'name' => 'Taxonomy menu i18n entity translation',
+      'description' => 'Tests for taxonomy_menu_i18n + entity_translation.',
+      'group' => 'Taxonomy menu',
+    );
+  }
+
+  /**
+   * Setup.
+   */
+  public function setUp() {
+    parent::setUp('entity_translation', 'title');
+
+    // Create and login user.
+    $this->translator = $this->drupalCreateUser(array(
+      'administer taxonomy',
+      'administer entity translation',
+      'toggle field translatability',
+      'translate any entity',
+      'administer menu',
+    ));
+    $this->drupalLogin($this->translator);
+
+    // Enable entity translation for taxonomy_terms.
+    $edit = array(
+      'entity_translation_entity_types[taxonomy_term]' => TRUE,
+    );
+    $this->drupalPost('admin/config/regional/entity_translation', $edit, t('Save configuration'));
+
+    // Show language selector on terms.
+    $edit = array(
+      'entity_translation_settings_taxonomy_term__' . $this->vocabulary->machine_name . '[hide_language_selector]' => FALSE,
+      'entity_translation_settings_taxonomy_term__' . $this->vocabulary->machine_name . '[default_language]' => LANGUAGE_NONE,
+    );
+    $this->drupalPost('admin/config/regional/entity_translation', $edit, t('Save configuration'));
+
+    // Replace title with title_field.
+    title_field_replacement_toggle('taxonomy_term', $this->vocabulary->machine_name, 'name');
+
+    // Create taxonomy term.
+    $name = LANGUAGE_NONE . $this->randomName();
+    $edit = array();
+    $edit['name_field[' . LANGUAGE_NONE . '][0][value]'] = $name;
+    $edit['language'] = LANGUAGE_NONE;
+    $this->drupalPost('admin/structure/taxonomy/' . $this->vocabulary->machine_name . '/add', $edit, t('Save'));
+
+    $terms = taxonomy_get_term_by_name($name);
+    $term = reset($terms);
+    $this->term = $term;
+  }
+
+  /**
+   * Test that menu items are in sync with entity translations.
+   */
+  public function testEntityTranslation() {
+    // Set taxonomy menu i18n mode to "translate".
+    $this->setTaxonomyMenuI18nMode(I18N_MODE_TRANSLATE);
+
+    $default_term_name = $this->term->name;
+
+    // Check menu item text for default language.
+    $this->i18nGet($this->default_language);
+    $this->assertText($default_term_name);
+
+    // Menu item should exist in both languages, as
+    // term is language neutral.
+    $this->i18nGet($this->secondary_language);
+    $this->assertText($default_term_name);
+
+    // Set term language to default and create entity translation.
+    $this->setTermLanguage($this->default_language);
+    $term_translation = $this->createEntityTranslation();
+
+    // Check menu item text for default language.
+    $this->i18nGet($this->default_language);
+    $this->assertText($default_term_name);
+    $this->assertNoText($term_translation);
+
+    // Check menu item text for secondary language.
+    $this->i18nGet($this->secondary_language);
+    $this->assertText($term_translation);
+    $this->assertNoText($default_term_name);
+
+    // Set taxonomy menu i18n mode to "localize".
+    $this->setTaxonomyMenuI18nMode(I18N_MODE_LOCALIZE);
+
+    // Check menu item text for default language.
+    $this->i18nGet($this->default_language);
+    $this->assertText($default_term_name);
+    $this->assertNoText($term_translation);
+
+    // Check menu item text for secondary language.
+    $this->i18nGet($this->secondary_language);
+    $this->assertText($term_translation);
+    $this->assertNoText($default_term_name);
+  }
+
+  /**
+   * Change language of active term.
+   *
+   * @param string $language
+   *   The new language of the term.
+   */
+  public function setTermLanguage($language = LANGUAGE_NONE) {
+    // Name field wont save value if posted at same time as
+    // language for some reason -> set language first, then set
+    // name field.
+    $edit = array(
+      'language' => $language,
+    );
+    $this->drupalPost('taxonomy/term/' . $this->term->tid . '/edit', $edit, t('Save'));
+    $edit = array(
+      'name_field[' . $language . '][0][value]' => $this->term->name,
+    );
+    $this->drupalPost('taxonomy/term/' . $this->term->tid . '/edit/' . $language, $edit, t('Save'));
+    $this->drupalGet('taxonomy/term/' . $this->term->tid . '/edit');
+  }
+
+  /**
+   * Create an entity translation for term.
+   */
+  public function createEntityTranslation() {
+    // English used as source language.
+    $this->drupalGet('taxonomy/term/' . $this->term->tid . '/edit/add/' . $this->default_language . '/' . $this->secondary_language);
+
+    $name_key = 'name_field[' . $this->secondary_language . '][0][value]';
+    $edit = array();
+    $edit[$name_key] = $this->secondary_language . $this->randomName();
+
+    $this->drupalPost(NULL, $edit, t('Save'));
+    $this->drupalGet('taxonomy/term/' . $this->term->tid . '/translate');
+    return $edit[$name_key];
+  }
+}
+
+/**
+ * Tests for i18n taxonomy translation.
+ */
+class TaxonomyMenui18nTaxonomyTranslationTestCase extends TaxonomyMenui18nTestCase {
+
+  /**
+   * Test information.
+   */
+  public static function getInfo() {
+    return array(
+      'name' => 'Taxonomy menu i18n taxonomy translation',
+      'description' => 'Tests for taxonomy_menu_i18n + i18n_taxonomy.',
+      'group' => 'Taxonomy menu',
+    );
+  }
+
+  /**
+   * Setup.
+   */
+  public function setUp() {
+    parent::setUp('i18n_taxonomy');
+
+    $term = new stdClass();
+    $term->name = $this->randomName();
+    $term->vid = $this->vocabulary->vid;
+    $term->language = LANGUAGE_NONE;
+    taxonomy_term_save($term);
+    $this->term = $term;
+
+    // Create translator user. This user is required by
+    // Drupali18nTestCase. Adding sufficient permissions to this user
+    // in order to avoid switching between this and admin.
+    $this->translator = $this->drupalCreateUser(array(
+      'translate interface',
+      'translate user-defined strings',
+      'administer taxonomy',
+      'administer menu',
+      'administer modules',
+    ));
+
+    $this->drupalLogin($this->translator);
+  }
+
+  /**
+   * Taxonomy menu i18n tests for localized vocabulary.
+   */
+  public function testI18nTaxonomyLocalize() {
+    // Set vocabulary i18n mode to I18N_MODE_LOCALIZE.
+    $this->switchVocabularyI18nMode(I18N_MODE_LOCALIZE);
+
+    // Set taxonomy menu i18n mode to "translate".
+    $this->setTaxonomyMenuI18nMode(I18N_MODE_TRANSLATE);
+
+    // Check menu item text for default language.
+    $this->i18nGet($this->default_language);
+    $this->assertText($this->term->name);
+
+    // Menu item should exist in both languages, as
+    // term is language neutral.
+    $this->i18nGet($this->secondary_language);
+    $this->assertText($this->term->name);
+
+    // Localize term using string translation.
+    $term_translation = $this->secondary_language . $this->randomName();
+    $this->createStringTranslation('taxonomy', $this->term->name, array($this->secondary_language => $term_translation));
+
+    // Check menu item text for default language.
+    $this->i18nGet($this->default_language);
+    $this->assertText($this->term->name);
+    $this->assertNoText($term_translation);
+
+    // Check menu item text for secondary language.
+    $this->i18nGet($this->secondary_language);
+    $this->assertText($term_translation);
+    $this->assertNoText($this->term->name);
+
+    // Set taxonomy menu i18n mode to "localize".
+    $this->setTaxonomyMenuI18nMode(I18N_MODE_LOCALIZE);
+
+    // Check menu item text for default language.
+    $this->i18nGet($this->default_language);
+    $this->assertText($this->term->name);
+    $this->assertNoText($term_translation);
+
+    // Check menu item text for secondary language.
+    $this->i18nGet($this->secondary_language);
+    $this->assertText($term_translation);
+    $this->assertNoText($this->term->name);
+  }
+
+  /**
+   * Taxonomy menu i18n tests for translated vocabulary.
+   */
+  public function testI18nTaxonomyTranslate() {
+    // Set i18n_taxonomy_mode to I18N_MODE_TRANSLATE
+    $this->switchVocabularyI18nMode(I18N_MODE_TRANSLATE);
+
+    // Set taxonomy menu i18n mode to "translate".
+    $this->setTaxonomyMenuI18nMode(I18N_MODE_TRANSLATE);
+
+    // Check menu item text for default language.
+    $this->i18nGet($this->default_language);
+    $this->assertText($this->term->name);
+
+    // Menu item should exist in both languages, as
+    // term is language neutral.
+    $this->i18nGet($this->secondary_language);
+    $this->assertText($this->term->name);
+
+    // Set term language to default.
+    $edit = array(
+      'language' => $this->default_language,
+    );
+    $this->drupalPost('taxonomy/term/' . $this->term->tid . '/edit', $edit, t('Save'));
+
+    // Check menu item text for default language.
+    $this->i18nGet($this->default_language);
+    $this->assertText($this->term->name);
+
+    // Menu item has disappeared on secondary language.
+    $this->i18nGet($this->secondary_language);
+    $this->assertNoText($this->term->name);
+
+    // Create translated term.
+    $translated_term = new stdClass();
+    $translated_term->name = $this->secondary_language . $this->randomName();
+    $translated_term->vid = $this->vocabulary->vid;
+    $translated_term->language = $this->secondary_language;
+    taxonomy_term_save($translated_term);
+
+    // Set terms as translations of each other.
+    $edit = array(
+      'translations[' . $this->default_language . ']' => $this->term->name,
+      'translations[' . $this->secondary_language . ']' => $translated_term->name,
+    );
+    $this->drupalPost('admin/structure/taxonomy/' . $this->vocabulary->machine_name . '/list/sets/add', $edit, t('Save'));
+
+    // Check menu item text for default language.
+    $this->i18nGet($this->default_language);
+    $this->assertText($this->term->name);
+    $this->assertNoText($translated_term->name);
+
+    // Menu item is translated on secondary language.
+    $this->i18nGet($this->secondary_language);
+    $this->assertText($translated_term->name);
+    $this->assertNoText($this->term->name);
+
+    // Set taxonomy menu i18n mode to "localize".
+    $this->setTaxonomyMenuI18nMode(I18N_MODE_LOCALIZE);
+
+    // Check menu item text for default language.
+    $this->i18nGet($this->default_language);
+    $this->assertText($this->term->name);
+    $this->assertNoText($translated_term->name);
+
+    // Menu item is translated on secondary language.
+    $this->i18nGet($this->secondary_language);
+    $this->assertText($translated_term->name);
+    $this->assertNoText($this->term->name);
+  }
+}
