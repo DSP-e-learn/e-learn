@@ -148,5 +148,5 @@ DirectoryIndex index.php index.html index.htm
   Header always set X-Content-Type-Options nosniff
 </IfModule>
 
-php_value upload_max_filesize 10M
-php_value post_max_size 10M
+#php_value upload_max_filesize 10M
+#php_value post_max_size 10M
