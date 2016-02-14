@@ -4,15 +4,13 @@ dependencies[] = menu
 description   = "Adds links to taxonomy terms to a menu."
 name          = "Taxonomy menu"
 package       = Taxonomy menu
-files[] = taxonomy_menu.batch.inc
-files[] = taxonomy_menu.database.inc
-files[] = taxonomy_menu.module
-files[] = taxonomy_menu.test
-files[] = taxonomy_menu.install
 
-; Information added by Drupal.org packaging script on 2014-04-01
-version = "7.x-1.5"
+; Tests
+files[] = tests/taxonomy_menu.test
+
+; Information added by Drupal.org packaging script on 2014-07-10
+version = "7.x-2.0-alpha2+12-dev"
 core = "7.x"
 project = "taxonomy_menu"
-datestamp = "1396359247"
+datestamp = "1404998628"
 
