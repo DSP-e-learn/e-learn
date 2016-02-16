@@ -1602,3 +1602,18 @@ body.two-sidebars #sidebar-first {
 	display: inline;
 	margin-left: 10px
 }
+
+.language-switcher-locale-url{
+    list-style-type: none;
+}
+.language-switcher-locale-url li {
+    display: inline;
+}
+.language-switcher-locale-url a img{
+    padding:0; 
+}
+#languages{
+    float:right;
+    padding: 10px;
+    margin: 10px; 
+}

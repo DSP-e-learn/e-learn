@@ -70,7 +70,10 @@
     <?php if ($logo): ?><div id="logo"><a href="<?php print $front_page; ?>" title="<?php print t('Home'); ?>"><img src="<?php print $logo; ?>"/></a></div><?php endif; ?>
     <?php if ($site_name): ?><h1 id="site-title"><a href="<?php print $front_page; ?>" title="<?php print t('Home'); ?>"><?php print $site_name; ?></a></h1><?php endif; ?>
     <?php if ($site_slogan): ?><div id="site-description"><?php print $site_slogan; ?></div><?php endif; ?>
-    <?php if ($site_slogan): ?><div id="user-menu"><?php  print render($page['user_menu']); ?> </div><?php endif; ?>
+
+    <?php if ($site_slogan): ?><div id="user-menu"><?php  print render($page['user_menu']); ?> </div><?php endif; ?>   
+    <div id="languages"><?php  print render($page['languages']); ?> </div>
+
     <div class="clear"></div>
     <?php
     // Disable Main menu if unchecked.
