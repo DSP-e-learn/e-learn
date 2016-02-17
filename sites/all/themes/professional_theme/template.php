@@ -125,7 +125,9 @@ function professional_theme_views_pre_render(&$view) {
   if(isset($view->args[0])) {
     i18n_string_translate_langcode( $language->language );
     $localized_term = i18n_taxonomy_localize_terms( taxonomy_term_load( $view->args[0]));
-    $view->set_title($localized_term->name);
+    if ($localized_term){
+      $view->set_title($localized_term->name);
+    }
   }
 }
 

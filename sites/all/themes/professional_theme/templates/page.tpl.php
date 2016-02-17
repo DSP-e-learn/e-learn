@@ -72,7 +72,7 @@
     <?php if ($site_slogan): ?><div id="site-description"><?php print $site_slogan; ?></div><?php endif; ?>
 
     <?php if ($site_slogan): ?><div id="user-menu"><?php  print render($page['user_menu']); ?> </div><?php endif; ?>   
-    <div id="languages"><?php  print render($page['languages']); ?> </div>
+    <div id="languages" ><?php  print render($page['languages']); ?> </div>
 
     <div class="clear"></div>
     <?php
