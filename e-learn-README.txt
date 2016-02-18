@@ -21,16 +21,17 @@ E_LEARN README NOTES
 
 * site admin workflow
    + approve trainers
+   + manage taxonomy
    - reports
 
 * course
-   - add video field and player?
+   + add video field and player?
    - add images and make a slidehsow of them
    + grant access to Course after product that referensed it was bought
    + revoke access to Course after sertain period of time (48 hours for example, 5 min in development)
 
 * quiz
-   - quiz creation - clear most of fields in edit tab
+   + quiz creation - clear most of fields in edit tab
    - style Certificate
    + questions browser - filter by current user
 
@@ -39,19 +40,17 @@ E_LEARN README NOTES
 + terms
 - theme
 - search
-- multilanguage
++ multilanguage
 
 
 TODO:
     
-
+-remove manage fields link from admin/structure/taxonomy/tags for siteadmins
 
 Questions:
-- price of the Course
-- 75% to pass the quiz?
-- shuld quiz be available after the access to Course has been revoked
-- should trainer be able to edit own Course and Quiz to course
-- should trainer be able to delete own Course 
++ price of the Course
++ should trainer be able to edit own Course and Quiz to course
++ should trainer be able to delete own Course 
 + fields for user/trainer profiles
 
 
