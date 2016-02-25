@@ -6,12 +6,11 @@
 <?php
 $fp = stream_socket_client("ssl://www.paypal.com:443", $errno, $errstr, 30);
 if (!$fp) {
-    echo "ddddddddddddddddddddddddddddddddd". "$errstr ($errno)<br />\n";
-} else {var_dump($fp); exit;
-    fwrite($fp, "GET / HTTP/1.0\r\nHost: www.example.com\r\nAccept: */*\r\n\r\n");
-    while (!feof($fp)) {
-        echo fgets($fp, 1024);
-    }
+    echo "$errstr ($errno)<br />\n";
+} else {
+  
+    var_dump($fp); 
+       
     fclose($fp);
 }
 ?>
