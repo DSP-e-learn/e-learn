@@ -39,7 +39,7 @@ E_LEARN README NOTES
 + features
 + terms
 - theme
-- search
++ search
 + multilanguage
 
 
