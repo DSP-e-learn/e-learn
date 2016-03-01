@@ -10,7 +10,7 @@ E_LEARN README NOTES
    + see Course
    + take Quiz
    + granted Certificate
-   - invoice
+   + invoice
 
 * trainer workflow
    + create Course
@@ -22,11 +22,11 @@ E_LEARN README NOTES
 * site admin workflow
    + approve trainers
    + manage taxonomy
-   - reports
+   + reports
 
 * course
    + add video field and player?
-   - add images and make a slidehsow of them
+   + add images and make a slidehsow of them
    + grant access to Course after product that referensed it was bought
    + revoke access to Course after sertain period of time (48 hours for example, 5 min in development)
 
@@ -46,6 +46,7 @@ E_LEARN README NOTES
 TODO:
     
 -remove manage fields link from admin/structure/taxonomy/tags for siteadmins
+- create  a table to hold user -> course relationship with start access date and revoke access date. Add these 2 dates on /user/%/courses
 
 Questions:
 + price of the Course
