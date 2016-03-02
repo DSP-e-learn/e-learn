@@ -6,7 +6,7 @@ E_LEARN README NOTES
 
 * user workflow
    + browse
-   - buy - paypal
+   + buy - paypal
    + see Course
    + take Quiz
    + granted Certificate

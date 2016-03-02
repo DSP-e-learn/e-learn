@@ -785,7 +785,7 @@ function taxonomy_menu_translated_menu_link_alter(&$item, $map) {
 
             if ($item['title'] != ($term->name . $display_num)) {
               // Should not happen
-              watchdog('error', 'Menu and taxonomy name mismatch: @title != @name', array('@title' => $item['title'], '@name' => $term->name . $display_num));
+             // watchdog('error', 'Menu and taxonomy name mismatch: @title != @name', array('@title' => $item['title'], '@name' => $term->name . $display_num));
             }
 
             $term = i18n_taxonomy_localize_terms($term);
