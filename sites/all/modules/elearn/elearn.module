@@ -122,3 +122,63 @@ function elearn_quiz_node_form_after_build($form) {
 //}
 
 
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * Alter the Commerce 'Add to Cart' form.
+ */
+function elearn_form_commerce_cart_add_to_cart_form_alter(&$form, &$form_state) {
+  //limit buyers by role
+  global $user;
+  $roles_allowed_to_buy = array(
+    'company',
+    'administrator',
+  );
+  if (!array_intersect($user->roles, $roles_allowed_to_buy)) {
+    // Display a help message.
+    $form['help'] = array(
+      '#markup' => t('You do not have permission to buy this product.'),
+    );
+    // Disable the whole form.
+    $form['#disabled'] = TRUE;
+    // Remove any submit button(s).
+    unset($form['submit']);
+  }
+  
+  //limit cart to only one product
+  $form['#validate'][] = 'elearn_cart_validate';
+
+}
+
+  //limit cart to only one product
+function elearn_cart_validate($form, &$form_state) {
+  $order = commerce_cart_order_load($GLOBALS['user']->uid);
+  if ($order) {
+    $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+    if ($order_wrapper->commerce_line_items->value()) {
+      form_set_error('', t("You can only have one item in your cart. <a href=\"/cart\">View cart</a>"));
+    }
+  }
+}
+
+//alter the price in cart & order
+// do NOT WORK
+function elearn_commerce_cart_line_item_refresh($line_item, $order_wrapper){
+
+    $line_wrapper = entity_metadata_wrapper('commerce_line_item', $line_item);
+
+    $new_price = 100; 
+
+    if(!empty($new_price)){
+        $line_wrapper->commerce_unit_price->amount->set($new_price);
+        $line_wrapper->save();
+    }
+
+}
+
+
+
+function elearn_commerce_payment_order_paid_in_full($transaction) {
+  // No example.
+  //var_dump($transaction); exit;
+}
