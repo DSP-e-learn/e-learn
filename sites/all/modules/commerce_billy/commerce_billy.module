@@ -54,7 +54,7 @@ function commerce_billy_menu_alter(&$items) {
 function commerce_billy_order_delete_access($op, $order) {
   // Deletion of orders in state 'invoiced' is not allowed.
   if ($order->status == 'invoiced') {
-    return FALSE;
+  //  return FALSE;
   }
   return commerce_order_access($op, $order);
 }
