@@ -1627,3 +1627,10 @@ body.two-sidebars #sidebar-first {
 .field-slideshow-pager a, .field-slideshow-controls a{
     margin: 10px;
 }
+
+
+.view-id-clone_of_taxonomy_term .views-field-commerce-price .views-label{ display: inline; font-weight:bold}
+.view-id-clone_of_taxonomy_term .views-field-commerce-price .field-content{display: inline;}
+
+form.commerce-add-to-cart .form-item-quantity label{display: inline; font-weight:bold}
+.price-note{font-size: 0.8em}

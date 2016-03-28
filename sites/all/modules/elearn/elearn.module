@@ -7,7 +7,6 @@
  */
 function elearn_form_alter(&$form, &$form_state, $form_id) {
 
-
     if ($form_id == 'course_node_form') {
         //hide quiz reference field
 	//$form['field_quiz']['und']['#type']= 'hidden'; // select
@@ -72,6 +71,12 @@ function elearn_form_alter(&$form, &$form_state, $form_id) {
         hide($form['feedback']);   
     }
     
+    if (strstr($form_id, 'commerce_cart_add_to_cart_form')) {
+      $form['warning'] = array(
+        '#markup' => t('<br /><span class="price-note"> Please note that the price will be altered according to number of attendies entered</span>'),
+        '#weight' => 100
+      );
+    }
 
 }
 
@@ -156,29 +161,118 @@ function elearn_cart_validate($form, &$form_state) {
   if ($order) {
     $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
     if ($order_wrapper->commerce_line_items->value()) {
-      form_set_error('', t("You can only have one item in your cart. <a href=\"/cart\">View cart</a>"));
+      form_set_error('', t("You can only have one Course in your cart. <a href=\"/cart\">View cart</a>"));
     }
   }
 }
 
-//alter the price in cart & order
-// do NOT WORK
-function elearn_commerce_cart_line_item_refresh($line_item, $order_wrapper){
 
-    $line_wrapper = entity_metadata_wrapper('commerce_line_item', $line_item);
 
-    $new_price = 100; 
-
-    if(!empty($new_price)){
-        $line_wrapper->commerce_unit_price->amount->set($new_price);
-        $line_wrapper->save();
-    }
-
+function elearn_commerce_price_component_type_info() {
+  return array(
+    'additional_course_price_component' => array(
+      'title' => t('Additional price based on number of attendies'), 
+      'display_title' => t('Additional price based on number of attendies'), 
+      'weight' => 100,
+    ),
+  );
 }
 
 
+/*
+//alter the price in cart & order
+function elearn_commerce_cart_line_item_refresh($line_item, $order_wrapper) {//var_dump($line_item);
+  if ($line_item->type == "product") {
+    $price = 100 * $line_item->quantity; //1 dollar
+    $line_item->commerce_unit_price[LANGUAGE_NONE]['0']['amount'] += $price;//to remove the line item set it's unit_price = null
+    $line_item->commerce_unit_price[LANGUAGE_NONE]['0']['data']['components']['0']['price']['amount'] = $price; //alter the base_price component
+  }
+}
 
+
+//alter the price in cart & order
+// do NOT WORK
+//function elearn_commerce_cart_line_item_refresh($line_item, $order_wrapper){
+//
+//    $line_wrapper = entity_metadata_wrapper('commerce_line_item', $line_item);
+//
+//    $new_price = 100; 
+//
+//    if(!empty($new_price)){
+//        $line_wrapper->commerce_unit_price->amount->set($new_price);
+//        $line_wrapper->save();
+//    }
+//
+//}
+
+
+
+/*
 function elearn_commerce_payment_order_paid_in_full($transaction) {
   // No example.
   //var_dump($transaction); exit;
 }
+
+function elearn_commerce_order_presave($order) {
+  // Find out if our order already has an example_2 line item.
+  $type_exists = FALSE;
+  //var_dump($order->commerce_line_items['und']);exit;
+  if (!empty($order->commerce_line_items['und'])) {
+    foreach ($order->commerce_line_items['und'] as $delta => $line_item_entry) {//var_dump($line_item_entry);exit;
+      if ($line_item = commerce_line_item_load($line_item_entry['line_item_id'])) {
+        if ($line_item->type == 'example_line_item_2') {
+          $type_exists = TRUE;
+          break;
+        }
+      }
+    }
+  }
+
+  // If our line item is not yet in the order and the order has an ID,
+  // create a line item to add to the order.
+  if (!$type_exists && $order->order_id > 0) {
+    $line_item = elearn_line_item_2_new($order->order_id);
+    commerce_line_item_save($line_item);
+    $order->commerce_line_items['und'][] = array('line_item_id' => $line_item->line_item_id);
+  }
+}
+
+function elearn_line_item_2_new($order_id = 0) {
+  $type = 'example_line_item_2';
+
+  // Create the new line item.
+  $line_item = entity_create('commerce_line_item', array(
+    'type' => $type, 
+    'order_id' => $order_id, 
+    'quantity' => 1,
+  ));
+
+  // For this example, we'll use a price of USD $5.00 for the "surcharge".
+  $amount = variable_get('line_item_example_line_item_2_amount', 500);
+  var_dump($amount); exit;
+  $currency_code = variable_get('line_item_example_line_item_2_currency', 'USD');
+
+  $line_item->commerce_unit_price = array('und' => array(
+      '0' => array(
+        'amount' => $amount,
+        'currency_code' => $currency_code,
+      ),
+    ));
+
+  $line_item_wrapper = entity_metadata_wrapper('commerce_line_item', $line_item);
+
+  if (!is_null($line_item_wrapper->commerce_unit_price->value())) {
+    // Add the base price to the components array.
+    if (!commerce_price_component_load($line_item_wrapper->commerce_unit_price->value(), 'base_price')) {
+      $line_item_wrapper->commerce_unit_price->data = commerce_price_component_add(
+        $line_item_wrapper->commerce_unit_price->value(), 
+        'base_price', 
+        $line_item_wrapper->commerce_unit_price->value(), 
+        TRUE
+      );
+    }
+  }
+  // Return the line item.
+  return $line_item;
+}
+*/
