@@ -6,7 +6,8 @@
  * Implements hook_form_alter().
  */
 function elearn_form_alter(&$form, &$form_state, $form_id) {
-
+//var_dump($form_id);
+  global $user;
     if ($form_id == 'course_node_form') {
         //hide quiz reference field
 	//$form['field_quiz']['und']['#type']= 'hidden'; // select
@@ -77,7 +78,194 @@ function elearn_form_alter(&$form, &$form_state, $form_id) {
         '#weight' => 100
       );
     }
+    if ($form_id == 'course_node_form') {
+      $node = $form_state['node'];
+      if (isset($node->nid)) {
+          //prevent deleting a course
+          unset($form['actions']['delete']);
+          //disable language field on editing course
+          $form['language']['#disabled'] = TRUE;
+      }
+      //allow trainers to publish/unpublish their courses but without promote and sticky
+      if(in_array('trainer', $user->roles)) {
+        if ($form['options']['#access'] == FALSE) {
+          $form['options']['#access'] = TRUE;
+        }
+        unset($form['options']['promote']);
+        unset($form['options']['sticky']);
+      }
+    }
+    
+}
 
+//ensure our hook runs the last
+function elearn_module_implements_alter(&$implementations, $hook) {
+    if ($hook == 'form_alter') {
+        $module = 'elearn';
+        // store
+        $group = array($module => $implementations[$module]);
+        // unset
+        unset($implementations[$module]);
+        // add to the end
+        $implementations = $implementations + $group;
+    }
+}
+
+
+function elearn_node_update($node){
+  global $user;
+  //handle publish/unpublish of Course to publish/unpublish corresponding Product Display
+  //as rules doesn't do publishing because of permission issue
+  if($node->type == "course"){
+    //find course HOLDER
+    $query = new EntityFieldQuery();
+    $query->entityCondition('entity_type', 'node');
+    $query->fieldCondition('field_reference_to_course', 'target_id', $node->nid);
+    $result = $query->execute();
+    $course_holders = (isset($result['node'])) ? $result['node'] : array();
+    
+    //we count on that the query returns only one row
+    foreach($course_holders as $holder_id => $holder){
+      //find course PRODUCT
+      $query = new EntityFieldQuery();
+      $query->entityCondition('entity_type', 'commerce_product');
+      $query->fieldCondition('field_course_holder_reference', 'target_id', $holder_id);
+      $result = $query->execute();
+      $products = $result['commerce_product'];  
+      foreach($products as $product_id => $product){
+        //find course PRODUCT DISPLAY
+        $pd_id = elearn_get_display_node_by_product_id($product_id, 'field_product');
+        $pd = node_load($pd_id);
+        $pd->status = $node->status;
+        node_save($pd);
+      } 
+    }
+    
+  }
+  
+  //Create Course HOLDER, PRODUCT and PD on creating a quiz(course)
+  if($node->type == "quiz"){
+    $course_id =        elearn_get_node_referensing_node($node->nid, 'field_quiz', 'node'  );
+    $course = node_load($course_id);
+    $course_wrapper = entity_metadata_wrapper('node', $course);
+
+    $course_holder_id =  elearn_get_node_referensing_node($course_id, 'field_reference_to_course', 'node'  );
+    $product_id =        elearn_get_node_referensing_node($course_holder_id, 'field_course_holder_reference', 'commerce_product'  );
+    $product_diplay_id = elearn_get_display_node_by_product_id($product_id, 'field_product');
+    
+    //create course HOLDER if it doesn't exist
+    if(!$course_holder_id ){
+      $values = array(
+        'type' => 'course_holder',
+        'uid' => $user->uid,
+        'status' => 1,
+        'comment' => 0,
+        'promote' => 0,
+      );
+      $entity = entity_create('node', $values);
+      $ewrapper = entity_metadata_wrapper('node', $entity);
+      $ewrapper->title->set($course->title);
+      $ewrapper->field_reference_to_course->set(intval($course_id));
+      $ewrapper->field_reference_to_quiz->set(intval($node->nid));
+      $ewrapper->language->set($course->language);
+      $ewrapper->save();  
+      $course_holder_id = $ewrapper->nid->value();  
+      
+//      echo "after create course HOLDER";
+//      var_dump($course_id,$course_holder_id, $product_id , $product_diplay_id);
+
+    }
+ 
+    //create course PRODUCT if it doesn't exist
+    if(!$product_id ){
+      $cp = commerce_product_new('product');
+      $cp->is_new = TRUE;
+      $cp->revision_id = NULL;
+      $cp->uid = $user->uid;;
+      $cp->status = 1;
+      $cp->created = $cp->changed = time();
+      $cp->sku = $course->title . " - " . $course->nid;
+      $cp->title = $course->title;
+      $cp->language = $course->language;
+      $price = field_get_items('node', $course, 'field_base_price_of_the_course');
+      $cp->commerce_price = array(LANGUAGE_NONE => array( 0 => array(
+       'amount' => $price[0]['amount'],
+       'currency_code' => 'USD',
+      )));
+      //$product[retail_price];
+      
+      $form_state = array();
+      $form = array();
+      $form_state['values']['field_course_holder_reference'] =array(LANGUAGE_NONE => array(0 => array('target_id' => $course_holder_id)));;
+      $form['#parents'] = array();
+      field_attach_submit('commerce_product', $cp, $form, $form_state);
+      commerce_product_save($cp);  
+      $product_id = $cp->product_id;
+//      echo "after create course PRODUCT";
+//      var_dump($course_id,$course_holder_id, $product_id , $product_diplay_id);
+
+    }
+ 
+    //create course PRODUCT DISPLAY if it doesn't exist
+    if(!$product_diplay_id ){
+      $values = array(
+        'type' => 'course_product_display',
+        'uid' => $user->uid,
+        'status' => $course->status,
+        'comment' => 0,
+        'promote' => 0,
+      );
+      $entity = entity_create('node', $values);
+      $ewrapper = entity_metadata_wrapper('node', $entity);
+      $ewrapper->title->set($course->title);
+      $ewrapper->field_product->set(intval($product_id));
+      $ewrapper->language->set($course->language);
+      $category = field_get_items('node', $course, 'field_category');
+      $ewrapper->field_pd_category->set(intval($category[0]['tid']));
+      $short_description = field_get_items('node', $course, 'field_course_short_description');
+      $ewrapper->field_course_short_description->set($short_description['0']['value']);
+      $ewrapper->save(); 
+    }
+  }
+}
+//get a node that referenses a node_id
+function elearn_get_node_referensing_node($node_id, $field_name, $entity_type  ) {
+  $query = new EntityFieldQuery;
+  $result = $query->entityCondition('entity_type', $entity_type, '=')
+    ->fieldCondition($field_name, 'target_id', $node_id, '=')
+    ->range(0, 1)    
+    ->addTag('DANGEROUS_ACCESS_CHECK_OPT_OUT')
+    ->execute();
+
+  if (empty($result[$entity_type])) {
+    return FALSE;
+  }
+  //var_dump($result[$entity_type]);
+  if($entity_type == 'commerce_product')return reset($result[$entity_type])->product_id;
+  return reset($result[$entity_type])->nid;
+}
+
+
+function elearn_get_display_node_by_product_id($product_id, $product_field_name = 'product_reference') {
+  $query = new EntityFieldQuery;
+  $result = $query->entityCondition('entity_type', 'node', '=')
+    ->fieldCondition($product_field_name, 'product_id', $product_id, '=')
+    ->range(0, 1)    
+    ->addTag('DANGEROUS_ACCESS_CHECK_OPT_OUT')
+    ->execute();
+
+  if (empty($result['node'])) {
+    return FALSE;
+  }
+
+  return reset($result['node'])->nid;
+}
+
+function elearn_node_insert($node){
+  if($node->type == "course_product_display"){
+    //$product = commerce_product_load($node->field_product);
+   // var_dump($node); exit;
+  }
 }
 
 // afterbuild function
