@@ -99,18 +99,19 @@ public:// = sites/default/files
 - Фактурата към фирмата да е за 70% от стойността на поръчката
 ======================================================
 
+		
 + 0. да се създадат таблиците (може и на ръка може и в модула)
 + 1. да се добави към поръчката лайн айтем с цената по групи
-- 2. при завършване на поръчка да се запише в таблицата course-instance  - id, date-bought, company_id, order_id, course_holder_id, date-activated
-- 3. Интерфейс за активиране на курс - списък с имейли и текст за писмото.
-- 3а.при активиране на курс: 
-                   - да се запише в таблицата course-instance - date-activated
-                   - да се запише в таблицата course-instance-enrolled - course_instance_id, course_holder_id, user_id, first_accessed, last_accessed,  score_1, score_2, score_3
-                   - да се проверят имейлите от списъка и ако няма акаунти да се създадат
-                   - за всеки акаунт от списъка да се добави ред в таблицата course-instance-enrolled
-                   - за всеки акаунт в таблицата да се дадат права за course, course_holder, quiz (може да се използва сегашния rule)
++ 2. при завършване на поръчка да се запише в таблицата course-instance  - id, date-bought, company_id, order_id, course_holder_id, date-activated
++ 3. Интерфейс за активиране на курс - списък с имейли и текст за писмото.
++ 3а.при активиране на курс: 
+                   + да се запише в таблицата course-instance - date-activated
+                   + да се запише в таблицата course-instance-enrolled - course_instance_id, course_holder_id, user_id, first_accessed, last_accessed,  score_1, score_2, score_3
+                   + да се проверят имейлите от списъка и ако няма акаунти да се създадат
+                   + за всеки акаунт от списъка да се добави ред в таблицата course-instance-enrolled
+                   + за всеки акаунт в таблицата да се дадат права за course, course_holder, quiz (може да се използва сегашния rule)
 - 4. при завършване на тест да се запише в таблицата course-instance-enrolled - score 1,2,3
-- 5. 
+- 5. view activity page
 ================================
 - да се махне My orders таба от акаунта на юзер
 - да се обави Му ordered courses таб за треньор в който да за всички покупки на негови курсове
