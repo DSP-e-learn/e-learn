@@ -116,6 +116,7 @@ function elearn_node_update($node){
   global $user;
   //handle publish/unpublish of Course to publish/unpublish corresponding Product Display
   //as rules doesn't do publishing because of permission issue
+  //all other fields are updated from rule "Edit course Holder, Product and PD on Course change"
   if($node->type == "course"){
     //find course HOLDER
     $query = new EntityFieldQuery();
@@ -228,6 +229,8 @@ function elearn_node_update($node){
     }
   }
 }
+
+
 //get a node that referenses a node_id
 function elearn_get_node_referensing_node($node_id, $field_name, $entity_type  ) {
   $query = new EntityFieldQuery;
@@ -464,3 +467,405 @@ function elearn_line_item_2_new($order_id = 0) {
   return $line_item;
 }
 */
+
+
+function elearn_commerce_payment_order_paid_in_full($order, $transaction) {
+  
+  $product_ids = array();
+  foreach (entity_metadata_wrapper('commerce_order', $order)->commerce_line_items as $delta => $line_item_wrapper) {
+    if (in_array($line_item_wrapper->type->value(), commerce_product_line_item_types())) {
+      $product_ids[] = $line_item_wrapper->commerce_product->raw();
+      $number_attendies[] = $line_item_wrapper->field_number_of_attendies->value();
+    }
+  }
+  $product_id = $product_ids[0]; // we allow only one product in cart so we are sure that the line item of type product is only one
+  $number_attendies = $number_attendies[0];
+  $product_wrapper = entity_metadata_wrapper('commerce_product', $product_id);
+  $course_holder = $product_wrapper->field_course_holder_reference->value();
+  
+  $nid = db_insert('course_instance') // Table name no longer needs {}
+    ->fields(array(
+      'order_id' => $order->order_id,
+      'uid' => $order->uid,
+      'course_holder_id' => $course_holder->nid,
+      'numb_attendies' => $number_attendies,
+      'created' => REQUEST_TIME,
+  ))
+  ->execute();
+}
+
+function elearn_menu(){
+
+   $items['user/%/my-courses'] = array(
+    'title' => 'Courses I bought',
+    'page callback' => 'elearn_my_courses',
+    'page arguments' =>array(1),
+    'access callback' => 'elearn_my_courses_access',
+    'access arguments' => array(1),
+    'type' =>  MENU_LOCAL_TASK
+  );
+  $items['course/%/activate'] = array(
+    'title' => 'Activate course',
+    'page callback' => 'drupal_get_form',
+    'page arguments' =>array('elearn_course_activate_form', 1),
+    'access callback' => 'elearn_course_activate_access',
+    'access arguments' => array(1),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  return $items;
+}
+
+function elearn_my_courses($uid){
+  $output = '';
+  $header = array(
+    array('data' => t('Order ID'), 'field' => 'order_id', 'sort' => 'asc'),
+    array('data' => t('Name'), 'field' => 'created'),
+    array('data' => t('Attendies'), 'field' => 'numb_attendies'),
+    array('data' => t('Date Bought'), 'field' => 'created'),
+    array('data' => t('Start date'), 'field' => 'activated'),
+    array('data' => t('End date'), 'field' => 'ended'),
+  );
+  $header['operations'] = array('data' => t('Operations'));
+ // $destination = drupal_get_destination();
+
+  $query = db_select('course_instance', 'c')->extend('TableSort')->extend('PagerDefault')->limit(2)->orderByHeader($header);
+  $query->fields('c', array('ciid', 'order_id', 'course_holder_id', 'numb_attendies', 'created', 'activated', 'ended'));
+  $query->condition('c.uid', $uid, '=');  
+  $result = $query->execute();
+  $rows = array();
+
+  foreach ($result as $row) {
+    $curse_holder = node_load($row->course_holder_id);
+    $actvated = $row->activated ? format_date($row->activated,'short') : t("not activated");
+    $ended = $row->ended ? format_date($row->ended,'short') : t("not ended");
+    $title = $curse_holder ? $curse_holder->title : "";
+    $rows[$row->order_id] = array(
+      "data"=>array(
+          $row->order_id, $title, $row->numb_attendies, format_date($row->created,'short'), $actvated, $ended
+        ),
+      "class"=> array("class" => "course-instance-". $row->order_id),
+    );
+    $operations = array();
+    if (!$row->activated){
+      $destination = drupal_get_destination();
+      $operations['activate'] = array(
+        'title' => t('Activate'),
+        'href' => 'course/' . $row->ciid . '/activate/' ,
+        'query' => $destination,
+      );
+    }else{
+      $destination = drupal_get_destination();
+      $operations['view_activity'] = array(
+        'title' => t('View activity'),
+        'href' => 'course/' . $row->ciid . '/activity/' ,
+        'query' => $destination,
+      );
+    }
+    // Render an unordered list of operations links.
+      $rows[$row->order_id]["data"]['operations'] = array(
+        'data' => array(
+          '#theme' => 'links__node_operations',
+          '#links' => $operations,
+          '#attributes' => array('class' => array('links', 'inline')),
+        ),
+      );
+  }
+
+  $output .= theme_table(array(
+    'header' => $header,
+    'rows' => $rows,
+    'attributes' => array(),
+    'caption' => "10 courses listed per page",
+    'options' => array(),
+    'colgroups' => array(),
+    'sticky' => false,
+    'empty' => "No courses bought yet"
+      )
+  );
+  $output .= theme(
+      'pager', array('tags' => array() ) );
+  return $output;
+}
+
+//only user that bought course has the right to activate it
+function elearn_course_activate_access($ciid){
+  global $user;
+  $uid = db_query("SELECT uid FROM {course_instance} WHERE ciid = :ciid", array(":ciid" => $ciid))->fetchField();
+  if ($user->uid == $uid)  return TRUE;
+  else return FALSE; 
+}
+
+//every user can see only his own bought courses
+function elearn_my_courses_access($uid){
+  global $user;
+  if ($user->uid == $uid)  return TRUE;
+  else return FALSE;
+}
+
+
+function elearn_course_activate_form($form, &$form_state, $course_instance_id = NULL){
+  global $user;
+  if(isset($course_instance_id)){
+    $course_holder_id = db_query("SELECT course_holder_id FROM {course_instance} WHERE ciid = :ciid", array(":ciid" => $course_instance_id))->fetchField();
+    $date_bought = db_query("SELECT created FROM {course_instance} WHERE ciid = :ciid", array(":ciid" => $course_instance_id))->fetchField();
+    $number_attendies = db_query("SELECT numb_attendies FROM {course_instance} WHERE ciid = :ciid", array(":ciid" => $course_instance_id))->fetchField();
+    $curse_holder = node_load($course_holder_id);
+
+    }else {
+    return;
+  }
+  $form['title'] = array(
+    '#markup' => "<h2>". $curse_holder->title ."</h2>"
+  );
+  $form['created'] = array(
+    '#markup' => "<p>" . t("Date bought: "). format_date($date_bought,'short') . "</p>"
+  );
+  $form['numb_attendies'] = array(
+    '#markup' => "<p>" . t("Number of attendies: "). $number_attendies . "</p>"
+  );
+  $form['attension'] = array(
+    '#markup' => "<p class=\"error\">" . t("Please be aware that this action can NOT be undane oir altered!"). "</p>"
+  );
+
+  $form['list_of_emails'] = array(
+    '#type' => 'textarea',
+    '#title' => t('List of !numb_attendies emails', array('!numb_attendies' => $number_attendies)),
+    '#description' => t('The list will be truncated to first !numb_attendies email. Emails will be checked if there is an account with it.' ." <br />"
+        . 'If there isn\'t an account then fist an account will be created. '." <br />"
+        . 'If there is an account the user will be enrolled for the course and a letter will be sent with the link to the course', array('!numb_attendies' => $number_attendies)),
+    '#required' => true,
+
+  );
+  $form['text_to_be_sent_by_email'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Text for the email that will be sent to each enrolled user'),
+    '#required' => true,
+  );
+//  $form['course_holder_id'] = array(
+//    '#type' => 'hidden',
+//    '#value' => $course_holder_id,
+//  );
+  $form['ciid'] = array(
+    '#type' => 'hidden',
+    '#value' => $course_instance_id,
+  );
+  
+  $form['actions'] = array('#type' => 'actions');
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Activate Course')
+  );
+  $form['actions']['cancel'] = array(
+    '#markup' => l(t('Cancel'), 'user/' . $user->uid . '/my-courses'),
+  );
+  
+  $form['#validate'][] = 'course_activate_validate';
+  $form['#submit'][] = 'course_activate_submit';
+
+  return $form;
+}
+
+
+function course_activate_validate($form, &$form_state){
+  return TRUE;
+}
+
+
+
+function generate_username($name,$n){
+    $username = ($n != 0) ? $name . "_" .$n : $name;
+
+  //check if account with this username exists
+  $existing_username = db_query("SELECT name FROM {users} WHERE name = :name", array(":name" => $username))->fetchField();
+  if($existing_username){
+    $username = generate_username($name,++$n);
+  }
+  return $username;
+}
+
+function course_activate_submit($form, &$form_state){
+  global $user, $base_url, $base_path ;
+  $course_instanse = db_query("select * from {course_instance} where ciid = :ciid", array(":ciid" => $form_state['values']['ciid']))->fetchObject();
+  if($course_instanse->uid != $user->uid){    
+    drupal_set_message(t("Error activating course."), 'error'); 
+    return false;
+  }
+  $course_holder_id = $course_instanse->course_holder_id;
+  $course_holder = node_load($course_holder_id);
+  $course = node_load($course_holder->field_reference_to_course['und'][0]['target_id']);
+  //a period (In seconds) set from trainer for course to be accessible by users
+  $course_period = $course->field_period['und'][0]['value'];
+  $end_date = time() + $course_period;
+  $id = db_update('course_instance')
+    ->fields(array(
+      'activated' => REQUEST_TIME,
+      'ended' => $end_date,
+    ))
+    ->condition('ciid', $form_state['values']['ciid'], '=')
+    ->execute();
+  $number_attendies = $course_instanse->numb_attendies;
+  $list_of_emails = preg_split( "/\r\n|(\s|&|,|;)/", $form_state['values']['list_of_emails'] );
+  $list_of_emails = array_filter($list_of_emails);
+  //trunk list to the number_of_attendies value
+  $list_of_emails = array_chunk($list_of_emails,$number_attendies,true);
+  $list_of_emails = $list_of_emails[0];
+
+  $users_to_be_created = array();
+  foreach($list_of_emails as $k => $email){
+      //check if account with this email exists
+      $uid = db_query("SELECT uid FROM {users} WHERE mail = :email", array(":email" => $email))->fetchField();
+      //make list of emails that don't have an account
+      if(!$uid){
+        $username =  explode('@', $email);
+        $username = generate_username($username[0],0);
+        $users_to_be_created[$username] = $email;
+      }
+  }
+  //for these that don't have an account - create it
+  $role_name = 'user';
+  $role = user_role_load_by_name($role_name);
+  foreach ($users_to_be_created as $name => $email) {  
+    //set up the user fields
+    $fields = array(
+      'name' => $name,
+      'mail' => $email,
+      'pass' => user_password(),
+      'status' => 1,
+      'roles' => array(
+          $role->rid => $role->name,
+      ),
+    );
+    //the first parameter is left blank so a new user is created
+    $user_account = user_save('', $fields);
+    //send an email
+    $params['account'] = $user_account;
+    $language = user_preferred_language($user_account);
+    $mail = drupal_mail('elearn', 'elearn_account_created', $user_account->mail, $language, $params);
+    if(empty($mail)) {
+      watchdog('error', 'Sending mail for ACCOUNT CREATED FAILD. User %name. Course %course', array('%name' => $user_account->mail));
+    }else{
+      watchdog('action', 'Sending mail for ACCOUNT CREATED created seccseeded. User %name. Course %course', array('%name' => $user_account->mail));
+    }
+  }
+  
+  //for all submited emails
+
+  $params['course_holder_name'] = $course_holder->title;
+  $params['course_holder_url'] = $base_url . $base_path . drupal_get_path_alias("node/".$course_holder->nid);
+
+  $params['course_end_date'] = format_date($end_date,'short');
+  
+  $profile = profile2_load_by_user($user->uid);
+  if ($profile['company']->field_company_full_name) {
+		$company_name = $profile['company']->field_company_full_name['und'][0]['value']; 
+	}
+  $params['company_name'] = $company_name;
+  $sent_emails = array();
+  foreach($list_of_emails as $k => $email){
+    $user_account = user_load_by_mail($email);
+    //give permissions to Course holder, Course and Quiz  - rule?
+    $access_granted = rules_invoke_component('rules_comp_grant_access_to_course_holder_course_and_quiz', $course_holder, $user_account);
+    //write in the DB
+    //var_dump($access_granted); exit;
+    if ($access_granted !== false){
+        $id = db_insert('course_instance_enrolled')
+        ->fields(array(
+          'ciid' => $form_state['values']['ciid'] ,
+          'uid' => $user_account->uid,
+          'course_holder_id' => $course_holder_id,
+          'uid' => $user_account->uid,
+        ))
+        ->execute();
+
+        //send emal with course holder link
+        $language = user_preferred_language($user_account);
+        $params['account'] = $user_account;   
+        $mail = drupal_mail('elearn', 'elearn_access_granted', $user_account->mail, $language, $params);
+        if(empty($mail)) {
+          watchdog('error', 'Sending mail for ACCESS  GRANTED FAILD. User %name. Course %course', array('%name' => $user_account->mail, '%course' => $course_holder->title));
+        }else{
+          watchdog('action', 'Sending mail for ACCESS  GRANTED seccseeded. User %name. Course %course', array('%name' => $user_account->mail, '%course' => $course_holder->title));
+          $sent_emails[] = $user_account->mail;
+        }
+    }
+  }
+  drupal_set_message(t("Course activated. <br /> End date: !enddate. <br />Enrollerd users: !enrolled", array('!enddate' => format_date($end_date,'short'), '!enrolled' => implode(", ", $sent_emails)))); 
+
+}
+
+/**
+ * Implements hook_mail().
+ */
+function elearn_mail($key, &$message, $params) {//var_dump($params); exit;
+  $language = $message['language'];
+  $message['subject'] .= _elearn_mail_text($key . '_subject', $language, $params);
+  $message['body'][]   = _elearn_mail_text($key . '_body', $language, $params);
+}
+
+function _elearn_mail_text($key, $language = NULL, $variables = array(), $replace = TRUE) {//var_dump($variables); exit;
+    $langcode = isset($language) ? $language->language : NULL;
+    switch ($key) {
+      case 'elearn_account_created_subject':
+        $text = t('Account details for [user:name] at [site:name]', array(), array('langcode' => $langcode));
+        break;
+      case 'elearn_account_created_body':
+        $text = t("Hello [user:name],
+
+An account has been creted for you at [site:name] . You may now log in by clicking this link or copying and pasting it to your browser:
+
+[user:one-time-login-url]
+
+This link can only be used once to log in and will lead you to a page where you can set your password.
+
+After setting your password, you will be able to log in at [site:login-url] in the future using:
+
+username: [user:name]
+password: Your password
+
+--  [site:name] team", array(), array('langcode' => $langcode));        
+        break;
+      case 'elearn_access_granted_subject':
+        $text = t('You have been granted access to a course at [site:name]', array(), array('langcode' => $langcode));
+        break;
+      case 'elearn_access_granted_body':
+        $text = t("Hello [user:name],
+
+[company:name] has just granted you an access to a course [course:name]
+Please log in to the site and then  use the fillowing url to view the course: [course:url]
+The course will be available to you until [course:end_date]
+
+Happy learning!
+--------------  
+[site:name] team", array(), array('langcode' => $langcode));        
+        break;
+    }  
+    
+    if ($replace) {
+    // We do not sanitize the token replacement, since the output of this
+    // replacement is intended for an e-mail message, not a web browser.
+    return token_replace($text, $variables, array('language' => $language, 'callback' => 'elearn_mail_tokens', 'sanitize' => FALSE, 'clear' => TRUE));
+  }
+  return $text;
+}
+
+function elearn_mail_tokens(&$replacements, $data, $options) {
+  if (isset($data['account'])) {
+    $replacements['[user:one-time-login-url]'] = user_pass_reset_url($data['account']);
+    $replacements['[user:cancel-url]'] = user_cancel_url($data['account']);
+    $replacements['[user:name]'] = $data['account']->name;
+  }
+  if (isset($data['course_holder_name'])) {
+    $replacements['[course:name]'] = $data['course_holder_name'];
+  }
+  if (isset($data['company_name'])) {
+    $replacements['[company:name]'] = $data['company_name'];
+  }else{
+    $replacements['[company:name]'] = t('A company');
+  }
+  if (isset($data['course_holder_url'])) {
+    $replacements['[course:url]'] = $data['course_holder_url'];
+  }
+  if (isset( $data['course_end_date'])) {
+    $replacements['[course:end_date]'] =  $data['course_end_date'];
+  }
+}
