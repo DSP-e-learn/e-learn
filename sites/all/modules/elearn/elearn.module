@@ -512,8 +512,34 @@ function elearn_menu(){
     'access arguments' => array(1),
     'type' => MENU_NORMAL_ITEM,
   );
+  $items['course/%/activity'] = array(
+    'title' => '',
+    'page callback' => 'elearn_course_activity',
+    'page arguments' =>array(1),
+    'access callback' => 'elearn_course_activate_access',
+    'access arguments' => array(1),
+    'type' => MENU_NORMAL_ITEM,
+  );
   return $items;
 }
+
+
+//only user that bought course has the right to activate it
+function elearn_course_activate_access($ciid){
+  global $user;
+  $uid = db_query("SELECT uid FROM {course_instance} WHERE ciid = :ciid", array(":ciid" => $ciid))->fetchField();
+  if ($user->uid == $uid)  return TRUE;
+  else return FALSE; 
+}
+
+
+//every user can see only thet courses he has bought
+function elearn_my_courses_access($uid){
+  global $user;
+  if ($user->uid == $uid)  return TRUE;
+  else return FALSE;
+}
+
 
 function elearn_my_courses($uid){
   $output = '';
@@ -528,7 +554,7 @@ function elearn_my_courses($uid){
   $header['operations'] = array('data' => t('Operations'));
  // $destination = drupal_get_destination();
 
-  $query = db_select('course_instance', 'c')->extend('TableSort')->extend('PagerDefault')->limit(2)->orderByHeader($header);
+  $query = db_select('course_instance', 'c')->extend('TableSort')->extend('PagerDefault')->limit(20)->orderByHeader($header);
   $query->fields('c', array('ciid', 'order_id', 'course_holder_id', 'numb_attendies', 'created', 'activated', 'ended'));
   $query->condition('c.uid', $uid, '=');  
   $result = $query->execute();
@@ -575,7 +601,7 @@ function elearn_my_courses($uid){
     'header' => $header,
     'rows' => $rows,
     'attributes' => array(),
-    'caption' => "10 courses listed per page",
+    'caption' => "20 courses listed per page",
     'options' => array(),
     'colgroups' => array(),
     'sticky' => false,
@@ -587,19 +613,69 @@ function elearn_my_courses($uid){
   return $output;
 }
 
-//only user that bought course has the right to activate it
-function elearn_course_activate_access($ciid){
+function elearn_course_activity($ciid){
   global $user;
-  $uid = db_query("SELECT uid FROM {course_instance} WHERE ciid = :ciid", array(":ciid" => $ciid))->fetchField();
-  if ($user->uid == $uid)  return TRUE;
-  else return FALSE; 
-}
+  $course_instanse = db_query("select * from {course_instance} where ciid = :ciid", array(":ciid" => $ciid))->fetchObject();
+  if($course_instanse->uid != $user->uid){    
+    drupal_set_message(t("Error viewing course activity."), 'error'); 
+    return false;
+  }
+  $course_holder_id = $course_instanse->course_holder_id;
+  $course_holder = node_load($course_holder_id);
 
-//every user can see only his own bought courses
-function elearn_my_courses_access($uid){
-  global $user;
-  if ($user->uid == $uid)  return TRUE;
-  else return FALSE;
+  $output = "<h3>". $course_holder->title . t(" - course activity"). "</h3>";
+  $output .= "<h5>" .t("Activation date: ") . format_date($course_instanse->activated,'short') . "</h5>";
+  $output .= "<h5>" .t("End date: ") . format_date($course_instanse->ended,'short') . "</h5>";
+  $output .= "<h5>" .t("Order: ") . l(t('order No') . $course_instanse->order_id, "user/$user->uid/orders/$course_instanse->order_id") . "</h5>";
+
+
+  $header = array(
+    array('data' => t('User'), 'field' => 'uid'),
+    array('data' => t('User email'), 'field' => 'uid', 'sort' => 'asc'),
+    array('data' => t('First accessed'), 'field' => 'first_accessed'),
+    array('data' => t('Last accessed'), 'field' => 'last_accessed'),
+    array('data' => t('Best result'), 'field' => 'result_id'),
+  );
+  $header['operations'] = array('data' => t('Operations'));
+ // $destination = drupal_get_destination();
+
+  $query = db_select('course_instance_enrolled', 'c')->distinct()->extend('TableSort')->extend('PagerDefault')->limit(20)->orderByHeader($header);
+  $query->fields('c', array('ciid', 'uid', 'course_holder_id','first_accessed', 'last_accessed', 'result_id'));
+  $query->condition('c.ciid', $ciid, '=');  //var_dump($query->__toString()); exit;
+  $result = $query->execute();
+  $rows = array();
+
+  foreach ($result as $row) {
+    $curse_holder = node_load($row->course_holder_id);
+    $user_enrolled = user_load($row->uid);
+    $user_name = $user_enrolled->name;
+    $user_email = $user_enrolled->mail;
+    
+    $first_accessed = $row->first_accessed ? format_date($row->first_accessed,'short') : t("not accessed");
+    $last_accessed = $row->last_accessed ? format_date($row->last_accessed,'short') : t("");
+    $title = $curse_holder ? $curse_holder->title : "";
+    $rows[$row->uid] = array(
+      "data"=>array(
+          $user_name, $user_email, $first_accessed, $last_accessed, ''
+        ),
+      "class"=> array("class" => "course-enrolled-". $row->uid),
+    );
+  }
+
+  $output .= theme_table(array(
+    'header' => $header,
+    'rows' => $rows,
+    'attributes' => array(),
+    'caption' => "20 attendies listed per page",
+    'options' => array(),
+    'colgroups' => array(),
+    'sticky' => false,
+    'empty' => "No attendies added yet"
+      )
+  );
+  $output .= theme(
+      'pager', array('tags' => array() ) );
+  return $output;
 }
 
 
@@ -878,7 +954,7 @@ function elearn_mail_tokens(&$replacements, $data, $options) {
 function elearn_exit() {
   global $user;
   // We are counting content views.
-  if (in_array("company", $user->roles) && arg(0) == 'node' && is_numeric(arg(1)) && arg(2) == NULL) {
+  if (in_array("user", $user->roles) && arg(0) == 'node' && is_numeric(arg(1)) && arg(2) == NULL) {
    $node = node_load(arg(1));
    if ($node->type == 'course_holder'){
     // A node has been viewed, from user so update the node's counters.
