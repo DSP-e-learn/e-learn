@@ -494,15 +494,31 @@ function elearn_commerce_payment_order_paid_in_full($order, $transaction) {
   ->execute();
 }
 
+/**
+     * Implementing hook_menu_alter
+     * Restrict MENU TABS access
+     */
+    function elearn_menu_alter(&$items) {
+      global $user;
+        if( in_array('user', $user->roles)) {
+            $items['user/%/orders']['access callback'] = FALSE;
+        }
+        //allow company that enrolled a user to see his quiz results
+        if( in_array('company', $user->roles)) {
+          $items['node/%/quiz-results/%/view']['access callback'] = TRUE;
+        }
+    }
+
 function elearn_menu(){
 
-   $items['user/%/my-courses'] = array(
+   $items['user/%/courses-i-bought'] = array(
     'title' => 'Courses I bought',
     'page callback' => 'elearn_my_courses',
     'page arguments' =>array(1),
     'access callback' => 'elearn_my_courses_access',
     'access arguments' => array(1),
-    'type' =>  MENU_LOCAL_TASK
+    'type' =>  MENU_LOCAL_TASK,
+     'weight' =>100
   );
   $items['course/%/activate'] = array(
     'title' => 'Activate course',
@@ -536,7 +552,7 @@ function elearn_course_activate_access($ciid){
 //every user can see only thet courses he has bought
 function elearn_my_courses_access($uid){
   global $user;
-  if ($user->uid == $uid)  return TRUE;
+  if ($user->uid == $uid && !in_array("user", $user->roles) &&  !in_array("trainer", $user->roles))  return TRUE;
   else return FALSE;
 }
 
@@ -584,7 +600,6 @@ function elearn_my_courses($uid){
       $operations['view_activity'] = array(
         'title' => t('View activity'),
         'href' => 'course/' . $row->ciid . '/activity/' ,
-        'query' => $destination,
       );
     }
     // Render an unordered list of operations links.
@@ -622,6 +637,7 @@ function elearn_course_activity($ciid){
   }
   $course_holder_id = $course_instanse->course_holder_id;
   $course_holder = node_load($course_holder_id);
+  $quiz_nid = $course_holder->field_reference_to_quiz['und'][0]['target_id'];
 
   $output = "<h3>". $course_holder->title . t(" - course activity"). "</h3>";
   $output .= "<h5>" .t("Activation date: ") . format_date($course_instanse->activated,'short') . "</h5>";
@@ -634,7 +650,9 @@ function elearn_course_activity($ciid){
     array('data' => t('User email'), 'field' => 'uid', 'sort' => 'asc'),
     array('data' => t('First accessed'), 'field' => 'first_accessed'),
     array('data' => t('Last accessed'), 'field' => 'last_accessed'),
-    array('data' => t('Best result'), 'field' => 'result_id'),
+    array('data' => t('Best result(%)')),
+    array('data' => t('Is evaluated')),
+
   );
   $header['operations'] = array('data' => t('Operations'));
  // $destination = drupal_get_destination();
@@ -646,19 +664,39 @@ function elearn_course_activity($ciid){
   $rows = array();
 
   foreach ($result as $row) {
-    $curse_holder = node_load($row->course_holder_id);
     $user_enrolled = user_load($row->uid);
     $user_name = $user_enrolled->name;
     $user_email = $user_enrolled->mail;
     
     $first_accessed = $row->first_accessed ? format_date($row->first_accessed,'short') : t("not accessed");
     $last_accessed = $row->last_accessed ? format_date($row->last_accessed,'short') : t("");
-    $title = $curse_holder ? $curse_holder->title : "";
+    $quiz_result = db_query("SELECT * FROM {quiz_node_results} WHERE nid = :nid AND uid = :uid ORDER BY score DESC LIMIT 1", array(":nid" => $quiz_nid, ':uid' =>$row->uid))->fetchObject();
+
+    $score = (isset($quiz_result->score)) ? $quiz_result->score : '';
+    $is_evaluated = (isset($quiz_result->is_evaluated)) ? t("yes") : t('no');
     $rows[$row->uid] = array(
       "data"=>array(
-          $user_name, $user_email, $first_accessed, $last_accessed, ''
+          $user_name, $user_email, $first_accessed, $last_accessed, $score, $is_evaluated
         ),
       "class"=> array("class" => "course-enrolled-". $row->uid),
+    );  
+    
+    $operations = array();
+    if ($score){
+      $destination = drupal_get_destination();
+      $operations['view_results'] = array(
+        'title' => t('View best result'),
+        'href' => 'node/' . $quiz_nid . '/quiz-results/'. $quiz_result->result_id ."/view" ,
+        //'query' => $destination,
+      );
+    }
+    // Render an unordered list of operations links.
+    $rows[$row->uid]["data"]['operations'] = array(
+      'data' => array(
+        '#theme' => 'links__node_operations',
+        '#links' => $operations,
+        '#attributes' => array('class' => array('links', 'inline')),
+      ),
     );
   }
 
@@ -675,6 +713,7 @@ function elearn_course_activity($ciid){
   );
   $output .= theme(
       'pager', array('tags' => array() ) );
+  $output .= l(t("Backk to Courses I bought"), "/user/$user->uid/courses-i-bought");
   return $output;
 }
 
