@@ -869,3 +869,53 @@ function elearn_mail_tokens(&$replacements, $data, $options) {
     $replacements['[course:end_date]'] =  $data['course_end_date'];
   }
 }
+
+
+/**
+ * Implements hook_exit().
+ * Gathers statistics for page accesses.
+ */
+function elearn_exit() {
+  global $user;
+  // We are counting content views.
+  if (in_array("company", $user->roles) && arg(0) == 'node' && is_numeric(arg(1)) && arg(2) == NULL) {
+   $node = node_load(arg(1));
+   if ($node->type == 'course_holder'){
+    // A node has been viewed, from user so update the node's counters.
+//    db_merge('course_instance_enrolled')
+//      ->key(array('uid' => $user->uid, 'course_holder_id' => arg(1)))
+//      ->fields(array(
+//        'first_accessed' => REQUEST_TIME,
+//        'last_accessed' => REQUEST_TIME,
+//      ))
+//      ->expression('last_accessed', REQUEST_TIME)
+//      ->execute();
+     
+    $query = db_select('course_instance_enrolled')
+      ->condition('uid', $user->uid)
+      ->condition('course_holder_id', arg(1))
+      ->isNotNull('first_accessed')
+      ;
+    $num_rows = $query->countQuery()->execute()->fetchField();
+    if ($num_rows > 0) {
+      db_update('course_instance_enrolled')
+        ->fields(array(
+        'last_accessed' => REQUEST_TIME,
+      ))
+        ->condition('uid', $user->uid)
+        ->condition('course_holder_id', arg(1))
+        ->execute();
+    }
+    else {
+      db_update('course_instance_enrolled')
+        ->fields(array(
+        'first_accessed' => REQUEST_TIME,
+        'last_accessed' => REQUEST_TIME,
+      ))
+        ->condition('uid', $user->uid)
+        ->condition('course_holder_id', arg(1))
+        ->execute();  
+    }
+   }
+  }
+}
