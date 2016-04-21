@@ -103,7 +103,7 @@ public:// = sites/default/files
 + 0. да се създадат таблиците (може и на ръка може и в модула)
 + 1. да се добави към поръчката лайн айтем с цената по групи
 + 2. при завършване на поръчка да се запише в таблицата course-instance  - id, date-bought, company_id, order_id, course_holder_id, date-activated
-+ 3. Интерфейс за активиране на курс - списък с имейли и текст за писмото.
+- 3. Интерфейс за активиране на курс - списък с имейли и текст за писмото.
 + 3а.при активиране на курс: 
                    + да се запише в таблицата course-instance - date-activated
                    + да се запише в таблицата course-instance-enrolled - course_instance_id, course_holder_id, user_id, first_accessed, last_accessed,  score_1, score_2, score_3
@@ -111,11 +111,13 @@ public:// = sites/default/files
                    + за всеки акаунт от списъка да се добави ред в таблицата course-instance-enrolled
                    + за всеки акаунт в таблицата да се дадат права за course, course_holder, quiz (може да се използва сегашния rule)
 - 4. при завършване на тест да се запише в таблицата course-instance-enrolled - score 1,2,3
-- 5. view activity page - first accessed, best result - a link to best result - ??? access to results????
++ 5. view activity page - first accessed, best result - a link to best result - ??? access to results????
 ================================
-- да се махне My orders таба от акаунта на юзер
-- да се махне Courses I bought таба от акаунта на юзер
-- да се обави Му ordered courses таб за треньор в който да за всички покупки на негови курсове
++ да се махне My orders таба от акаунта на юзер
++ да се махне Courses I bought таба от акаунта на юзер
++ да се обави Му ordered courses таб за треньор в който да cа всички покупки на негови курсове
+- elearn_menu_alter -         //allow company that enrolled a user to see his quiz results
+
 
 
 
