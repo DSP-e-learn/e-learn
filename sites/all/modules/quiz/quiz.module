@@ -174,8 +174,9 @@ function quiz_admin_paths() {
  * @return boolean
  *   TRUE if user has permission.
  */
-function quiz_access_results($quiz, $result_id = NULL) {
+function quiz_access_results($quiz, $quiz_result) {
   global $user;
+  $result_id = $quiz_result->result_id;
 
   if ($quiz->type !== 'quiz') {
     return FALSE;
@@ -187,6 +188,9 @@ function quiz_access_results($quiz, $result_id = NULL) {
     if ($res && $res->nid != $quiz->nid) {
       return FALSE;
     }
+  }
+  if (user_access('score any quiz')) {
+    return TRUE;
   }
   if (user_access('view any quiz results')) {
     return TRUE;
@@ -346,8 +350,8 @@ function quiz_menu() {
     'title' => 'Feedback',
     'title callback' => 'quiz_title',
     'title arguments' => array(1),
-    'page callback' => 'quiz_take_question_feedback',
-    'page arguments' => array(1, 3),
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('quiz_take_question_feedback_form', 1, 3),
     'access callback' => 'quiz_question_feedback_access',
     'access arguments' => array(1, 3),
   );
@@ -419,6 +423,14 @@ function quiz_menu() {
     'type' => MENU_NORMAL_ITEM,
   );
 
+  $items['admin/quiz/result_answer'] = array(
+    'title' => 'Quiz result answer',
+    'description' => 'Configure Quiz result answer behaviors',
+    'page callback' => 'quiz_result_answer_page',
+    'access arguments' => array('administer quiz'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
   $items['node/%quiz_menu/quiz-results/%quiz_rid/view'] = array(
     'title' => 'View',
     'type' => MENU_DEFAULT_LOCAL_TASK,
@@ -432,9 +444,10 @@ function quiz_menu() {
     'access callback' => 'quiz_access_my_result',
     'access arguments' => array(3),
     'file' => 'quiz.pages.inc',
+    'type' => MENU_LOCAL_TASK,
   );
 
-  $items['node/%quiz_menu/quiz/results/%quiz_rid/view'] = array(
+  $items['node/%quiz_menu/quiz/results/%quiz_result/view'] = array(
     'title' => 'Results',
     'page callback' => 'quiz_admin_results',
     'page arguments' => array(1, 4),
@@ -515,6 +528,13 @@ function quiz_title($node) {
  */
 function quiz_result_page() {
   return t('Here, you can configure how Quiz attempts and results behave.');
+}
+
+/**
+ * Page for Quiz result answer configuration and fields.
+ */
+function quiz_result_answer_page() {
+  return t('Here, you can configure how Quiz result answers behave.');
 }
 
 /**
@@ -736,6 +756,8 @@ function quiz_update($node) {
  * Implements hook_field_extra_fields().
  */
 function quiz_field_extra_fields() {
+  $extra = array();
+
   $extra['node']['quiz'] = array(
     'display' => array(
       'take' => array(
@@ -782,6 +804,39 @@ function quiz_field_extra_fields() {
       ),
     ),
   );
+
+  $extra['quiz_result_answer']['quiz_result_answer']['display']['table'] = array(
+    'label' => t('Feedback table'),
+    'description' => t('A table of feedback.'),
+    'weight' => 0,
+  );
+  $options = quiz_get_feedback_options();
+  foreach ($options as $option => $label) {
+    $extra['quiz_result_answer']['quiz_result_answer']['display'][$option] = array(
+      'label' => $label,
+      'description' => t('Feedback for @label.', array('@label' => $label)),
+      'weight' => 0,
+    );
+  }
+
+  $extra['quiz_result']['quiz_result']['display'] = array(
+    'score' => array(
+      'label' => t('Score'),
+      'description' => t('The score of the result.'),
+      'weight' => 1,
+    ),
+    'questions' => array(
+      'label' => t('Questions'),
+      'description' => t('The questions in this result.'),
+      'weight' => 2,
+    ),
+    'summary' => array(
+      'label' => t('Summary'),
+      'description' => t('The summary and pass/fail text.'),
+      'weight' => 3,
+    ),
+  );
+
   return $extra;
 }
 
@@ -855,7 +910,6 @@ function _quiz_get_node_defaults() {
       'always_available' => TRUE,
       'backwards_navigation' => 1,
       'build_on_last' => '',
-      'has_userpoints' => 0,
       'keep_results' => 2,
       'mark_doubtful' => 0,
       'max_score' => 0,
@@ -884,7 +938,6 @@ function _quiz_get_node_defaults() {
       'takes' => 0,
       'tid' => 0,
       'time_limit' => 0,
-      'userpoints_tid' => 0,
   );
 }
 
@@ -999,8 +1052,6 @@ function quiz_take_page($quiz) {
   if ($quiz_result = quiz_take_quiz($quiz)) {
     if (!empty($quiz_result->resume)) {
       // Resuming attempt.
-      $_SESSION['quiz'][$quiz_result->nid]['result_id'] = $quiz_result->result_id;
-      $_SESSION['quiz'][$quiz_result->nid]['current'] = 1;
       drupal_set_message(t('Resuming a previous @quiz in-progress.', array('@quiz' => QUIZ_NAME)), 'status');
     }
     drupal_goto("node/{$quiz_result->nid}/take/" . ($_SESSION['quiz'][$quiz_result->nid]['current']));
@@ -1242,34 +1293,6 @@ function quiz_form(&$node, &$form_state) {
       '!countdown' => l('jquery_countdown', 'http://drupal.org/project/jquery_countdown'),
   )));
 
-  if (function_exists('userpoints_userpointsapi') && variable_get('quiz_has_userpoints', 1)) {
-    $form['userpoints'] = array(
-      '#type' => 'fieldset',
-      '#title' => t('Userpoints'),
-      '#collapsible' => TRUE,
-      '#collapsed' => FALSE,
-      '#group' => 'additional_settings',
-    );
-    $form['userpoints']['has_userpoints'] = array(
-      '#type' => 'checkbox',
-      '#default_value' => (isset($node->has_userpoints) ? $node->has_userpoints : 1),
-      '#title' => t('Enable UserPoints Module Integration'),
-      '#description' => t('If checked, marks scored in this @quiz will be credited to userpoints. For each correct answer 1 point will be added to user\'s point.', array('@quiz' => QUIZ_NAME)),
-    );
-    $form['userpoints']['userpoints_tid'] = array(
-      '#type' => 'select',
-      '#options' => _quiz_userpoints_type(),
-      '#title' => t('Userpoints Category'),
-      '#states' => array(
-        'visible' => array(
-          ':input[name=has_userpoints]' => array('checked' => TRUE),
-        ),
-      ),
-      '#default_value' => isset($node->userpoints_tid) ? $node->userpoints_tid : 0,
-      '#description' => t('Select the category to which user points to be added. To add new category see <a href="!url">admin/structure/taxonomy/userpoints</a>', array('!url' => url('admin/structure/taxonomy/userpoints'))),
-    );
-  }
-
   // Set up the availability options.
   $form['quiz_availability'] = array(
     '#type' => 'fieldset',
@@ -1468,15 +1491,6 @@ function quiz_form(&$node, &$form_state) {
   return $form;
 }
 
-function _quiz_userpoints_type() {
-  $userpoints_terms = taxonomy_get_tree(userpoints_get_vid());
-  $userpoints_tids = array(0 => t('Select'));
-  foreach ($userpoints_terms as $userpoints_term) {
-    $userpoints_tids[$userpoints_term->tid] = str_repeat('-', $userpoints_term->depth) . $userpoints_term->name;
-  }
-  return $userpoints_tids;
-}
-
 /**
  * Implements hook_validate().
  */
@@ -1603,8 +1617,19 @@ function quiz_node_prepare($node) {
 
 /**
  * Implements hook_user_cancel().
+ *
+ * Reassign Quiz results to the anonymous user, if requested.
  */
 function quiz_user_cancel($edit, $account, $method) {
+  if ($method == 'user_cancel_reassign') {
+    db_query("UPDATE {quiz_node_results} SET uid = 0 WHERE uid = :uid", array(':uid' => $account->uid));
+  }
+}
+
+/**
+ * Implements hook_user_delete().
+ */
+function quiz_user_delete($account) {
   if (variable_get('quiz_durod', 0)) {
     _quiz_delete_users_results($account->uid);
   }
@@ -1839,9 +1864,27 @@ function quiz_take_quiz($quiz) {
     // from the database.
     if ($quiz->allow_resume && !user_is_anonymous()) {
       if ($result_id = _quiz_active_result_id($user->uid, $quiz->nid, $quiz->vid)) {
+        // Put the result in the user's session.
         $_SESSION['quiz'][$quiz->nid]['result_id'] = $result_id;
         $_SESSION['quiz'][$quiz->nid]['current'] = 1;
+
+        // Now advance the user to after the last answered question.
         $quiz_result = quiz_result_load($result_id);
+        // Layout has already been ordered.
+        $prev = NULL;
+        foreach($quiz_result->layout as $question) {
+          $qra = entity_load_single('quiz_result_answer', $question['result_answer_id']);
+          if ($prev) {
+            if (!$qra->answer_timestamp && $prev->answer_timestamp) {
+              // This question has not been answered, but the previous
+              // question has.
+              $_SESSION['quiz'][$quiz->nid]['current'] = $question['number'];
+            }
+          }
+
+          $prev = clone $qra;
+        }
+
         // Resume a quiz from the database.
         $quiz_result->resume = 1;
         return $quiz_result;
@@ -2071,34 +2114,6 @@ function quiz_quiz_finished($quiz, $score, $session_data) {
     drupal_mail('quiz', 'notice', $taker->mail, NULL, array($quiz, $score, $result_id, 'taker'));
     drupal_set_message(t('Your results have been sent to your email address.'));
   }
-
-  // Calls userpoints functions to credit user point based on number of correct
-  // answers.
-  if ($quiz->has_userpoints && $taker->uid != 0 && $score['is_evaluated']) {
-
-    //Looking up the tid of the selected Userpoint vocabulary
-    $selected_tid = db_query("SELECT tid FROM {taxonomy_index}
-                WHERE nid = :nid AND tid IN (
-                  SELECT tid
-                  FROM {taxonomy_term_data} t_t_d JOIN {taxonomy_vocabulary} t_v ON t_v.vid = t_t_d.vid
-                  WHERE t_t_d.vid = :vid
-                )", array(':nid' => $quiz->nid, ':vid' => $quiz->vid, ':vid' => userpoints_get_vid()))->fetchField();
-    $variables = array(
-      '@title' => $quiz->title,
-      '@quiz' => QUIZ_NAME,
-      '@time' => date('l jS \of F Y h:i:s A'),
-    );
-    $params = array(
-      'points' => $score['numeric_score'],
-      'description' => t('Attended @title @quiz on @time', $variables),
-      'tid' => $selected_tid,
-      'uid' => $taker->uid,
-    );
-    if ($quiz->userpoints_tid != 0) {
-      $params['tid'] = $quiz->userpoints_tid;
-    }
-    userpoints_userpointsapi($params);
-  }
 }
 
 /**
@@ -2112,32 +2127,6 @@ function quiz_quiz_scored($quiz, $score, $result_id) {
   if (variable_get('quiz_email_results', 0) && $taker->uid != 0 && $score['is_evaluated']) {
     drupal_mail('quiz', 'notice', $taker->mail, NULL, array($quiz, $score, $result_id, 'taker'));
     drupal_set_message(t("The results has been sent to the user's email address."));
-  }
-
-  // Calls userpoints functions to credit user point based on number of correct
-  // answers.
-  if ($quiz->has_userpoints && $taker->uid != 0 && $score['is_evaluated']) {
-
-    //Looking up the tid of the selected Userpoint vocabulary
-    $selected_tid = db_query("SELECT ti.tid
-                FROM {taxonomy_index} ti
-                JOIN {taxonomy_term_data} td
-                  ON td.tid = ti.tid AND td.vid = :vid
-                WHERE ti.nid = :nid", array(':nid' => $quiz->nid, ':vid' => userpoints_get_vid()))->fetchField();
-    $variables = array(
-      '@title' => $quiz->title,
-      '@quiz' => QUIZ_NAME,
-      '@time' => date('l jS \of F Y h:i:s A'),
-    );
-    $params = array(
-      'points' => $score['numeric_score'],
-      'description' => t('Attended @title @quiz on @time', $variables),
-      'tid' => $selected_tid,
-    );
-    if ($quiz->userpoints_tid != 0) {
-      $params['tid'] = $quiz->userpoints_tid;
-    }
-    userpoints_userpointsapi($params);
   }
 }
 
@@ -2425,7 +2414,7 @@ function quiz_availability($quiz) {
  *     - is_evaluated
  */
 function quiz_calculate_score($result_id) {
-  $quiz_result_answers = entity_load('quiz_result_answer', NULL, array('result_id' => $result_id));
+  $quiz_result_answers = entity_load('quiz_result_answer', FALSE, array('result_id' => $result_id));
 
   $numeric_score = $possible_score = 0;
   $is_evaluated = 1;
@@ -2805,7 +2794,7 @@ function _quiz_update_resultoptions($node) {
  * @return
  *   Filtered summary text or null if we are not displaying any summary.
  */
-function _quiz_get_summary_text($quiz_result, $score) {
+function _quiz_get_summary_text($quiz_result) {
   $quiz = node_load($quiz_result->nid);
   $account = user_load($quiz_result->uid);
   $token_types = array(
@@ -2816,13 +2805,13 @@ function _quiz_get_summary_text($quiz_result, $score) {
   );
   $summary = array();
 
-  if ($result_option = _quiz_pick_result_option($quiz->nid, $quiz->vid, $score['percentage_score'])) {
+  if ($result_option = _quiz_pick_result_option($quiz->nid, $quiz->vid, $quiz_result->score)) {
     // Range option.
     $summary['result'] = check_markup(token_replace($result_option->option_summary, $token_types), $result_option->option_summary_format);
   }
 
   if (variable_get('quiz_use_passfail', 1) && $quiz->pass_rate > 0) {
-    if ($score['percentage_score'] >= $quiz->pass_rate) {
+    if ($quiz_result->score >= $quiz->pass_rate) {
       // Pass/fail is enabled and user passed.
       $summary['passfail'] = check_markup(token_replace($quiz->summary_pass, $token_types), $quiz->summary_pass_format);
     }
@@ -3050,7 +3039,7 @@ function quiz_get_sub_questions($qnr_pid, &$questions) {
   $query = db_select('node', 'n');
   $query->fields('n', array('nid', 'type'));
   $query->fields('nr', array('vid', 'title'));
-  $query->fields('qnr', array('question_status', 'weight', 'max_score', 'auto_update_max_score', 'qnr_id', 'qnr_pid'));
+  $query->fields('qnr', array('question_status', 'weight', 'max_score', 'auto_update_max_score', 'qnr_id', 'qnr_pid', 'child_nid', 'child_vid'));
   $query->addField('n', 'vid', 'latest_vid');
   $query->innerJoin('node_revision', 'nr', 'n.nid = nr.nid');
   $query->innerJoin('quiz_node_relationship', 'qnr', 'nr.vid = qnr.child_vid');
@@ -3379,7 +3368,7 @@ function quiz_get_defaults() {
 
   if (count($entity)) {
     // We found user defaults.
-    $defaults = reset($entity);
+    $defaults = clone (reset($entity));
     unset($defaults->nid, $defaults->uid, $defaults->vid);
     return $defaults;
   }
@@ -3392,7 +3381,7 @@ function quiz_get_defaults() {
 
   if (count($entity)) {
     // Found global defaults.
-    $defaults = reset($entity);
+    $defaults = clone (reset($entity));
     unset($defaults->nid, $defaults->uid, $defaults->vid);
     return $defaults;
   }
@@ -3579,11 +3568,21 @@ function quiz_entity_info() {
     ),
     'quiz_result_answer' => array(
       'base table' => 'quiz_node_results_answers',
+      'bundles' => array(
+        'quiz_result_answer' => array(
+          'label' => 'Quiz result answer',
+          'admin' => array(
+            'path' => 'admin/quiz/result_answer',
+            'access arguments' => array('administer quiz'),
+          ),
+        ),
+      ),
       'controller class' => 'QuizResultAnswerController',
       'entity class' => 'QuizResultAnswer',
       'entity keys' => array(
         'id' => 'result_answer_id',
       ),
+      'fieldable' => TRUE,
       'label' => 'Quiz result answer',
       'metadata controller class' => 'QuizResultAnswerMetadataController',
       'views controller class' => 'EntityDefaultViewsController',
@@ -3637,7 +3636,9 @@ function quiz_access_question($quiz, $question_number) {
 /**
  * Show feedback for a question response.
  */
-function quiz_take_question_feedback($quiz, $question_number) {
+function quiz_take_question_feedback_form($form, &$form_state, $quiz, $question_number) {
+  $form = array();
+
   if (empty($_SESSION['quiz'][$quiz->nid]['result_id'])) {
     $result_id = $_SESSION['quiz']['temp']['result_id'];
   }
@@ -3645,9 +3646,48 @@ function quiz_take_question_feedback($quiz, $question_number) {
     $result_id = $_SESSION['quiz'][$quiz->nid]['result_id'];
   }
   $quiz_result = quiz_result_load($result_id);
-  $question_node = node_load($quiz_result->layout[$question_number]['nid'], $quiz_result->layout[$question_number]['vid']);
-  $feedback = quiz_question_feedback(node_load(arg(1)), $question_node);
-  return $feedback;
+
+  $form['actions']['#type'] = 'actions';
+
+  if ($quiz_result->time_end) {
+    // Quiz is done.
+    $form['actions']['finish'] = array(
+      '#type' => 'submit',
+      '#submit' => array('quiz_take_question_feedback_end_submit'),
+      '#value' => t('Finish'),
+    );
+  }
+  else {
+    $form['actions']['next'] = array(
+      '#type' => 'submit',
+      '#submit' => array('quiz_take_question_feedback_submit'),
+      '#value' => t('Next question'),
+    );
+  }
+
+  // Add feedback.
+  $out = array();
+  foreach ($quiz_result->layout as $question) {
+    if ($question['number'] == $question_number && $question['qnr_pid']) {
+      // Question is in a page.
+      foreach ($quiz_result->layout as $question2) {
+        if ($question2['qnr_pid'] == $question['qnr_pid']) {
+          $qra = entity_load_single('quiz_result_answer', $question2['result_answer_id']);
+          $out[] = $qra->view();
+        }
+      }
+    }
+  }
+
+  // Single question.
+  if (empty($out)) {
+    $qra = entity_load_single('quiz_result_answer', $quiz_result->layout[$question_number]['result_answer_id']);
+    $out[] = $qra->view();
+  }
+
+  $form['feedback'] = $out;
+
+  return $form;
 }
 
 /**
@@ -3952,10 +3992,39 @@ function quiz_result_form($form, &$form_state, $quiz_result) {
   }
 
   $form['actions'] = array('#type' => 'actions');
-  $form['actions']['submit'] = array(
-    '#type' => 'submit',
-    '#value' => t('Start @quiz', array('@quiz' => QUIZ_NAME)),
-  );
+
+  if (!empty($quiz_result->result_id)) {
+    $idx = 0;
+    foreach ($quiz_result->layout as $question) {
+      // Loop through all the questions and get their scoring form.
+      $question_node = node_load($question['nid'], $question['vid']);
+      $instance = _quiz_question_response_get_instance($quiz_result->result_id, $question_node);
+      $qras = entity_load('quiz_result_answer', FALSE, array('result_id' => $quiz_result->result_id, 'question_nid' => $question_node->nid, 'question_vid' => $question_node->vid));
+      $qra = reset($qras);
+      // Get the feedback elements.
+      $form['questions'][$idx] = $instance->getReportForm();
+      $form['questions'][$idx]['#tree'] = TRUE;
+      $form['questions'][$idx]['#type'] = 'fieldset';
+      $form['questions'][$idx]['#title'] = t('Question @num', array('@num' => $question['display_number']));
+      // The display of the question.
+      $form['questions'][$idx]['response'] = $qra->view();
+      $form['questions'][$idx]['response']['#weight'] = -1;
+      $idx++;
+    }
+  }
+
+  if (empty($quiz_result->result_id)) {
+    $form['actions']['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Start @quiz', array('@quiz' => QUIZ_NAME)),
+    );
+  }
+  else {
+    $form['actions']['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Save score'),
+    );
+  }
 
   return $form;
 }
@@ -3975,4 +4044,8 @@ function quiz_result_form_submit($form, &$form_state) {
   entity_save('quiz_result', $quiz_result);
   $_SESSION['quiz'][$quiz_result->nid]['result_id'] = $quiz_result->result_id;
   $_SESSION['quiz'][$quiz_result->nid]['current'] = 1;
+
+  // Call the grading handler.
+  module_load_include('inc', 'quiz', 'quiz.pages');
+  quiz_report_form_submit($form, $form_state);
 }

@@ -57,7 +57,7 @@ function quiz_question_theme() {
   );
 
   $hooks['quiz_question_feedback'] = array(
-    'variables' => NULL,
+    'variables' => array(),
     'pattern' => 'quiz_question_feedback__',
   );
 
@@ -211,6 +211,7 @@ function quiz_question_answering_form($form, $form_state, $nodes, $result_id) {
     $build = node_view($node, $view_mode);
     unset($build['#theme']);
     unset($build['answers']);
+    unset($build['links']);
 
     $form['question'][$node->nid] = array(
       '#attributes' => array('class' => array($class)),
@@ -235,7 +236,7 @@ function quiz_question_answering_form($form, $form_state, $nodes, $result_id) {
       }
     }
 
-    if ($quiz->mark_doubtful) {
+    if ($quiz->mark_doubtful && $question->isQuestion()) {
       $form['question'][$node->nid]['is_doubtful'] = array(
         '#type' => 'checkbox',
         '#title' => t('Doubtful?'),
@@ -599,7 +600,7 @@ function quiz_question_load($nodes) {
  *  Question node
  * @param $use_cached
  *  Can we use a cached version of the node?
- * @return
+ * @return QuizQuestion
  *  The appropriate QuizQuestion extension instance
  */
 function _quiz_question_get_instance($node) {
@@ -631,8 +632,8 @@ function _quiz_question_get_instance($node) {
  *  Question node id
  * @param $vid
  *  Question node version id
- * @return
- *  The appropriate QuizQuestionResponce extension instance
+ * @return QuizQuestionResponse
+ *  The appropriate QuizQuestionResponse extension instance
  */
 function _quiz_question_response_get_instance($result_id, $question, $answer = NULL, $nid = NULL, $vid = NULL) {
   $info = quiz_question_get_info();
@@ -984,12 +985,10 @@ function quiz_question_element_validate(&$element, &$form_state) {
   $result = _quiz_question_response_get_instance($_SESSION['quiz'][$quiz->nid]['result_id'], $current_question, $answer);
   if ($quiz->repeat_until_correct && !$result->isCorrect() && $result->isEvaluated()) {
     form_set_error('', t('The answer was incorrect. Please try again.'));
-
-    $feedback = quiz_question_feedback($quiz, $current_question);
-    $element['feedback'] = array(
-      '#weight' => 100,
-      '#markup' => drupal_render($feedback),
-    );
+    // Show feedback after incorrect answer.
+    $qra = entity_load_single('quiz_result_answer', $result->result_answer_id);
+    $element['feedback'] = $qra->view();
+    $element['feedback']['#weight'] = 100;
   }
 }
 
