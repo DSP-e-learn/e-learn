@@ -495,19 +495,31 @@ function elearn_commerce_payment_order_paid_in_full($order, $transaction) {
 }
 
 /**
-     * Implementing hook_menu_alter
-     * Restrict MENU TABS access
-     */
-    function elearn_menu_alter(&$items) {
-      global $user;
-        if( in_array('user', $user->roles)) {
-            $items['user/%/orders']['access callback'] = FALSE;
-        }
-        //allow company that enrolled a user to see his quiz results
-        if( in_array('company', $user->roles)) {
-          $items['node/%/quiz-results/%/view']['access callback'] = TRUE;
-        }
-    }
+* Implementing hook_menu_alter
+* Restrict MENU TABS access
+*/
+function elearn_menu_alter(&$items) {//echo "dddd"; exit;
+    $items['user/%views_arg/orders']['access callback'] = _user_orders_accesscheck;
+    $items['node/%/quiz-results/%/view']['access callback'] = _user_quiz_results_accesscheck;
+}
+
+/**
+ * Callback to remove My Orders tab from profile page of users with role = user or trainer
+ */
+function _user_orders_accesscheck(){
+  global $user;
+  return !(in_array('user', $user->roles) || in_array('trainer', $user->roles)) ; 
+}
+
+
+/**
+ * Callback to allow company that enrolled a user to see his quiz results
+ */
+function _user_quiz_results_accesscheck(){
+  global $user;
+  return in_array('company', $user->roles); 
+}
+
 
 function elearn_menu(){
 
