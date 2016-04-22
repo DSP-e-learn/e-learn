@@ -1,0 +1,119 @@
+<?php
+
+
+/**
+* Implements hook_schema().
+*/
+
+function elearn_schema() {
+  $schema['course_instance'] = array(
+    // Table description.
+    'description' => t('A table to store information for each course instance '),
+    'fields' => array(
+      'ciid' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => t('id'),
+      ),
+      'order_id' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => t('the id of the order with which the course was bought'),
+      ),
+      'uid' => array(
+        'description' => 'The Company ({users}.uid) that bought this Course.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'course_holder_id' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => t('nid of the Course holder'),
+      ),
+      'numb_attendies' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => t('Number of attendies that course was bought forholder'),
+      ),      
+      'created' => array(
+        'description' => 'The Unix timestamp when the course-instance was created.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'activated' => array(
+        'description' => 'The Unix timestamp when the course-instance was activated.',
+        'type' => 'int',
+        'not null' => FALSE,
+      ),
+      'ended' => array(
+        'description' => 'The Unix timestamp when the course-instance end ed.',
+        'type' => 'int',
+        'not null' => FALSE,
+      ),
+      
+    ),
+    'primary key' => array('ciid'),
+
+  );
+  
+  $schema['course_instance_enrolled'] = array(
+    // Table description.
+    'description' => t('A table to store information for all users that are enrolled for course instance '),
+    'fields' => array(
+      'ciid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => t('the id of the cource instance'),
+      ),
+      'uid' => array(
+        'description' => 'The ({users}.uid) of the enrolled user.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'course_holder_id' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => t('nid of the Course holder'),
+      ),
+      'first_accessed' => array(
+        'description' => 'The Unix timestamp when the course-instance was first accessed by this user.',
+        'type' => 'int',
+        'not null' => FALSE,
+      ),
+      'last_accessed' => array(
+        'description' => 'The Unix timestamp when the course-instance was last accessed by this user.',
+        'type' => 'int',
+        'not null' => FALSE,
+      ),
+      'result_id' => array(
+        'description' => 'The id of the result',
+        'type' => 'int',
+        'not null' => FALSE,
+      ),
+      
+    ),
+   // 'primary key' => array('ciid'),
+
+  );
+  
+return $schema;
+}
+
+
+/**
+* Implements hook_uninstall().
+*/
+function elearn_uninstall() {
+    drupal_uninstall_schema('course_instance');
+    drupal_uninstall_schema('course_instance_enrolled');
+
+}
