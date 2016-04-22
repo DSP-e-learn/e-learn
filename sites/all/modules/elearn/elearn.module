@@ -494,6 +494,7 @@ function elearn_commerce_payment_order_paid_in_full($order, $transaction) {
   ->execute();
 }
 
+
 /**
 * Implementing hook_menu_alter
 * Restrict MENU TABS access
@@ -751,7 +752,7 @@ function elearn_course_activate_form($form, &$form_state, $course_instance_id = 
     '#markup' => "<p>" . t("Number of attendies: "). $number_attendies . "</p>"
   );
   $form['attension'] = array(
-    '#markup' => "<p class=\"error\">" . t("Please be aware that this action can NOT be undane oir altered!"). "</p>"
+    '#markup' => "<p class=\"error\">" . t("Please be aware that this action can NOT be undane or altered!"). "</p>"
   );
 
   $form['list_of_emails'] = array(
@@ -765,8 +766,19 @@ function elearn_course_activate_form($form, &$form_state, $course_instance_id = 
   );
   $form['text_to_be_sent_by_email'] = array(
     '#type' => 'textarea',
-    '#title' => t('Text for the email that will be sent to each enrolled user'),
+    '#title' => t('Text for the email that will be send to each enrolled user'),
     '#required' => true,
+    "#default_value" => t("Hello [user:name],
+
+[company:name] has just granted you an access to a course [course:name]
+Please log in to the site and then  use the fillowing url to view the course: [course:url]
+The course will be available to you until [course:end_date]
+
+Happy learning!
+--------------  
+[site:name] team"),
+    '#description' => t('You can use the following tokens: [user:name], [course:name], [course:url], [course:end_date]'),
+    
   );
 //  $form['course_holder_id'] = array(
 //    '#type' => 'hidden',
@@ -906,7 +918,8 @@ function course_activate_submit($form, &$form_state){
 
         //send emal with course holder link
         $language = user_preferred_language($user_account);
-        $params['account'] = $user_account;   
+        $params['account'] = $user_account; 
+        $params['body'] = $form_state['values']['text_to_be_sent_by_email'];
         $mail = drupal_mail('elearn', 'elearn_access_granted', $user_account->mail, $language, $params);
         if(empty($mail)) {
           watchdog('error', 'Sending mail for ACCESS  GRANTED FAILD. User %name. Course %course', array('%name' => $user_account->mail, '%course' => $course_holder->title));
@@ -929,7 +942,7 @@ function elearn_mail($key, &$message, $params) {//var_dump($params); exit;
   $message['body'][]   = _elearn_mail_text($key . '_body', $language, $params);
 }
 
-function _elearn_mail_text($key, $language = NULL, $variables = array(), $replace = TRUE) {//var_dump($variables); exit;
+function _elearn_mail_text($key, $language = NULL, $variables = array(), $replace = TRUE) {
     $langcode = isset($language) ? $language->language : NULL;
     switch ($key) {
       case 'elearn_account_created_subject':
@@ -955,15 +968,16 @@ password: Your password
         $text = t('You have been granted access to a course at [site:name]', array(), array('langcode' => $langcode));
         break;
       case 'elearn_access_granted_body':
-        $text = t("Hello [user:name],
-
-[company:name] has just granted you an access to a course [course:name]
-Please log in to the site and then  use the fillowing url to view the course: [course:url]
-The course will be available to you until [course:end_date]
-
-Happy learning!
---------------  
-[site:name] team", array(), array('langcode' => $langcode));        
+        $text = $variables['body'];
+//        $text = t("Hello [user:name],
+//
+//[company:name] has just granted you an access to a course [course:name]
+//Please log in to the site and then  use the fillowing url to view the course: [course:url]
+//The course will be available to you until [course:end_date]
+//
+//Happy learning!
+//--------------  
+//[site:name] team", array(), array('langcode' => $langcode));        
         break;
     }  
     
