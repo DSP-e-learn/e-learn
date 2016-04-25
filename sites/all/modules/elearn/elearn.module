@@ -571,7 +571,7 @@ function elearn_my_courses_access($uid){
 
 
 function elearn_my_courses($uid){
-  $output = '';
+  $output = "<h5 class=\"error\">" .t('Atention: A course can be activated ONLY during an ONE YEAR period after the purchase.')."</h5>";
   $header = array(
     array('data' => t('Order ID'), 'field' => 'order_id', 'sort' => 'asc'),
     array('data' => t('Name'), 'field' => 'created'),
@@ -601,14 +601,20 @@ function elearn_my_courses($uid){
       "class"=> array("class" => "course-instance-". $row->order_id),
     );
     $operations = array();
-    if (!$row->activated){
+    //if the course is not activated and one year period since purchase is not passed 
+    // - add link to activating the course
+    $days_since_creation = (time() - $row->created)/(60*60*24); 
+    if (!$row->activated && $days_since_creation < 366){
+      
+      //var_dump($time_since_creation); exit;
       $destination = drupal_get_destination();
       $operations['activate'] = array(
         'title' => t('Activate'),
         'href' => 'course/' . $row->ciid . '/activate/' ,
         'query' => $destination,
       );
-    }else{
+    }
+    if($row->activated){
       $destination = drupal_get_destination();
       $operations['view_activity'] = array(
         'title' => t('View activity'),
@@ -734,14 +740,24 @@ function elearn_course_activity($ciid){
 function elearn_course_activate_form($form, &$form_state, $course_instance_id = NULL){
   global $user;
   if(isset($course_instance_id)){
-    $course_holder_id = db_query("SELECT course_holder_id FROM {course_instance} WHERE ciid = :ciid", array(":ciid" => $course_instance_id))->fetchField();
-    $date_bought = db_query("SELECT created FROM {course_instance} WHERE ciid = :ciid", array(":ciid" => $course_instance_id))->fetchField();
-    $number_attendies = db_query("SELECT numb_attendies FROM {course_instance} WHERE ciid = :ciid", array(":ciid" => $course_instance_id))->fetchField();
+//    $course_holder_id = db_query("SELECT course_holder_id FROM {course_instance} WHERE ciid = :ciid", array(":ciid" => $course_instance_id))->fetchField();
+//    $date_bought = db_query("SELECT created FROM {course_instance} WHERE ciid = :ciid", array(":ciid" => $course_instance_id))->fetchField();
+//    $number_attendies = db_query("SELECT numb_attendies FROM {course_instance} WHERE ciid = :ciid", array(":ciid" => $course_instance_id))->fetchField();
+    $course_instanse = db_query("select * from {course_instance} where ciid = :ciid", array(":ciid" => $course_instance_id))->fetchObject();
+    $course_holder_id = $course_instanse->course_holder_id;
+    $date_bought = $course_instanse->created;
+    $number_attendies = $course_instanse->numb_attendies;
     $curse_holder = node_load($course_holder_id);
 
     }else {
     return;
   }
+  $days_since_creation = (time() - $date_bought)/(60*60*24); 
+  if ($course_instanse->activated ||  $days_since_creation > 365){
+    drupal_set_message(t("This course can not be activated"), "error");
+    return false;
+  }
+  
   $form['title'] = array(
     '#markup' => "<h2>". $curse_holder->title ."</h2>"
   );
@@ -806,7 +822,13 @@ Happy learning!
 
 
 function course_activate_validate($form, &$form_state){
-  return TRUE;
+  $list_of_emails = _elearn_text_to_array($form_state['values']['list_of_emails']);
+  //var_dump($list_of_emails); exit;
+  foreach($list_of_emails as $email){
+    if (!valid_email_address($email)){
+      form_set_error('list_of_emails', t("%s is not a valid email address", array("%s"=>$email)));
+    }
+  }
 }
 
 
@@ -822,11 +844,30 @@ function generate_username($name,$n){
   return $username;
 }
 
+//helper function 
+//
+function _elearn_text_to_array($text, $max_number=0){
+  $list_of_emails = preg_split( "/\r\n|(\s|&|,|;)/", $text );
+  $list_of_emails = array_filter($list_of_emails);
+  //trunk list to the$max_number value
+  if($max_number){
+    $list_of_emails = array_chunk($list_of_emails,$max_number,true);
+    $list_of_emails = $list_of_emails[0];
+  }
+  return $list_of_emails;
+}
+
+
 function course_activate_submit($form, &$form_state){
   global $user, $base_url, $base_path ;
   $course_instanse = db_query("select * from {course_instance} where ciid = :ciid", array(":ciid" => $form_state['values']['ciid']))->fetchObject();
   if($course_instanse->uid != $user->uid){    
     drupal_set_message(t("Error activating course."), 'error'); 
+    return false;
+  }
+  $days_since_creation = (time() - $course_instanse->created)/(60*60*24); 
+  if ($course_instanse->activated ||  $days_since_creation > 365){
+    drupal_set_message(t("This course can not be activated"), "error");
     return false;
   }
   $course_holder_id = $course_instanse->course_holder_id;
@@ -843,11 +884,8 @@ function course_activate_submit($form, &$form_state){
     ->condition('ciid', $form_state['values']['ciid'], '=')
     ->execute();
   $number_attendies = $course_instanse->numb_attendies;
-  $list_of_emails = preg_split( "/\r\n|(\s|&|,|;)/", $form_state['values']['list_of_emails'] );
-  $list_of_emails = array_filter($list_of_emails);
-  //trunk list to the number_of_attendies value
-  $list_of_emails = array_chunk($list_of_emails,$number_attendies,true);
-  $list_of_emails = $list_of_emails[0];
+  
+  $list_of_emails = _elearn_text_to_array($form_state['values']['list_of_emails'], $number_attendies);
 
   $users_to_be_created = array();
   foreach($list_of_emails as $k => $email){
@@ -1060,3 +1098,5 @@ function elearn_exit() {
    }
   }
 }
+
+
