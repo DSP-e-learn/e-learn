@@ -191,13 +191,14 @@ function elearn_node_update($node){
       $price = field_get_items('node', $course, 'field_base_price_of_the_course');
       $cp->commerce_price = array(LANGUAGE_NONE => array( 0 => array(
        'amount' => $price[0]['amount'],
-       'currency_code' => 'USD',
+       'currency_code' => 'GBP',
       )));
       //$product[retail_price];
       
       $form_state = array();
       $form = array();
-      $form_state['values']['field_course_holder_reference'] =array(LANGUAGE_NONE => array(0 => array('target_id' => $course_holder_id)));;
+      $form_state['values']['field_course_reference'] = array(LANGUAGE_NONE => array(0 => array('target_id' => $course_id)));      
+      $form_state['values']['field_course_holder_reference'] = array(LANGUAGE_NONE => array(0 => array('target_id' => $course_holder_id)));
       $form['#parents'] = array();
       field_attach_submit('commerce_product', $cp, $form, $form_state);
       commerce_product_save($cp);  
@@ -787,7 +788,7 @@ function elearn_course_activate_form($form, &$form_state, $course_instance_id = 
     "#default_value" => t("Hello [user:name],
 
 [company:name] has just granted you an access to a course [course:name]
-Please log in to the site and then  use the fillowing url to view the course: [course:url]
+Please log in to the site and then  use the following url to view the course: [course:url]
 The course will be available to you until [course:end_date]
 
 Happy learning!
