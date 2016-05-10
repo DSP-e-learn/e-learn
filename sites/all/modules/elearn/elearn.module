@@ -500,9 +500,11 @@ function elearn_commerce_payment_order_paid_in_full($order, $transaction) {
 * Implementing hook_menu_alter
 * Restrict MENU TABS access
 */
-function elearn_menu_alter(&$items) {//echo "dddd"; exit;
+function elearn_menu_alter(&$items) {// echo "dddd"; exit;
     $items['user/%views_arg/orders']['access callback'] = _user_orders_accesscheck;
     $items['node/%/quiz-results/%/view']['access callback'] = _user_quiz_results_accesscheck;
+    $items['node/%/quiz-results/%/view']['access arguments'] = array(3);
+
 }
 
 /**
@@ -516,10 +518,40 @@ function _user_orders_accesscheck(){
 
 /**
  * Callback to allow company that enrolled a user to see his quiz results
+ * we just add another condition to quiz_access_my_result function
  */
-function _user_quiz_results_accesscheck(){
+function _user_quiz_results_accesscheck($result_id){
   global $user;
-  return in_array('company', $user->roles); 
+
+  // Check if the quiz taking has been completed.
+  if ($quiz_result = quiz_result_load($result_id)) {
+    $node = node_load($quiz_result->nid, $quiz_result->vid);
+
+    if (_his_user_bought_quiz($result_id) || quiz_access_to_score($node->uid) || ($quiz_result->time_end > 0 && $quiz_result->uid == $user->uid)) {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+
+/**
+ * Helper function to determine if a user has bought a course that referenses a quiz for a given quiz_result_id.
+ *
+ * 
+ * @param type $result_id/
+ */
+function _his_user_bought_quiz($result_id){
+    global $user;
+
+    $quiz_result = quiz_result_load($result_id);
+    $course_holder_id = elearn_get_node_referensing_node($quiz_result->nid, 'field_reference_to_quiz', 'node'  );
+    $course_instanse = db_query("select * from {course_instance} where uid = :uid AND course_holder_id = :course_holder_id", array(":uid" => $user->uid, ":course_holder_id" => $course_holder_id))->fetchObject();
+    if($course_instanse){    
+      return true;
+    }
+    return false;
 }
 
 
@@ -563,7 +595,7 @@ function elearn_course_activate_access($ciid){
 }
 
 
-//every user can see only thet courses he has bought
+//every user can see only the courses he has bought
 function elearn_my_courses_access($uid){
   global $user;
   if ($user->uid == $uid && !in_array("user", $user->roles) &&  !in_array("trainer", $user->roles))  return TRUE;
