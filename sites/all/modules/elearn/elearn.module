@@ -95,6 +95,12 @@ function elearn_form_alter(&$form, &$form_state, $form_id) {
         unset($form['options']['sticky']);
       }
     }
+    if ($form_id == 'user_register_form' || $form_id =="user_profile_form") {
+      $form['#attached']['js'] = array(
+        drupal_get_path('module', 'elearn') . '/populate-full-name.js',
+      );
+      //$form['profile_trainer']['field_full_name']['und']['0']['value']['#default_value']  = "ddd";
+    }
     
 }
 
@@ -1132,4 +1138,8 @@ function elearn_exit() {
   }
 }
 
+
+function elearn_field_widget_addressfield_standard_form_alter(&$element, &$form_state, $context) { 
+    $element['#type'] = 'container'; 
+}
 
