@@ -74,7 +74,7 @@ function elearn_form_alter(&$form, &$form_state, $form_id) {
     
     if (strstr($form_id, 'commerce_cart_add_to_cart_form')) {
       $form['warning'] = array(
-        '#markup' => t('<br /><span class="price-note"> Please note that the price will be altered according to number of attendies entered</span>'),
+        '#markup' => t('<br /><span class="price-note"> Please note that the price will be altered according to number of trainees entered</span>'),
         '#weight' => 100
       );
     }
@@ -340,7 +340,7 @@ function elearn_form_commerce_cart_add_to_cart_form_alter(&$form, &$form_state) 
   if (!array_intersect($user->roles, $roles_allowed_to_buy)) {
     // Display a help message.
     $form['help'] = array(
-      '#markup' => t('You do not have permission to buy this product.'),
+      '#markup' => t("<div style=\"color:#c00\">You do not have permission to buy this product. Please login with your company/'s account</div>"),
     );
     // Disable the whole form.
     $form['#disabled'] = TRUE;
@@ -352,6 +352,28 @@ function elearn_form_commerce_cart_add_to_cart_form_alter(&$form, &$form_state) 
   $form['#validate'][] = 'elearn_cart_validate';
 
 }
+
+
+/**
+ * Implements hook_commerce_price_formatted_components_alter().
+ *
+ * Alters somes text at the checkout form
+ *
+ * @param $components
+ * @param $price
+ * @param $entity
+ */
+function elearn_commerce_price_formatted_components_alter(&$components, $price, $entity) {
+  $components['base_price']['title'] = t('Fixed minimum price');
+  $components['commerce_price_formatted_amount']['title'] = t('Total price (Fixed + Additional)');
+
+  if($entity->type == 'commerce_order'){
+    $components['additional_course_price_component']['title'] = t('Additional price');
+    $components['commerce_price_formatted_amount']['title'] = t('Total order price');
+
+  }
+}
+
 
   //limit cart to only one product
 function elearn_cart_validate($form, &$form_state) {
@@ -370,7 +392,7 @@ function elearn_commerce_price_component_type_info() {
   return array(
     'additional_course_price_component' => array(
       'title' => t('Additional price based on number of attendies'), 
-      'display_title' => t('Additional price based on number of attendies'), 
+      'display_title' => t('Additional price (for number of trainees greater than one)'), 
       'weight' => 100,
     ),
   );
@@ -507,8 +529,8 @@ function elearn_commerce_payment_order_paid_in_full($order, $transaction) {
 * Restrict MENU TABS access
 */
 function elearn_menu_alter(&$items) {// echo "dddd"; exit;
-    $items['user/%views_arg/orders']['access callback'] = _user_orders_accesscheck;
-    $items['node/%/quiz-results/%/view']['access callback'] = _user_quiz_results_accesscheck;
+    $items['user/%views_arg/orders']['access callback'] = '_user_orders_accesscheck';
+    $items['node/%/quiz-results/%/view']['access callback'] = '_user_quiz_results_accesscheck';
     $items['node/%/quiz-results/%/view']['access arguments'] = array(3);
 
 }
@@ -614,7 +636,7 @@ function elearn_my_courses($uid){
   $header = array(
     array('data' => t('Order ID'), 'field' => 'order_id', 'sort' => 'asc'),
     array('data' => t('Name'), 'field' => 'created'),
-    array('data' => t('Attendies'), 'field' => 'numb_attendies'),
+    array('data' => t('Trainees'), 'field' => 'numb_attendies'),
     array('data' => t('Date Bought'), 'field' => 'created'),
     array('data' => t('Start date'), 'field' => 'activated'),
     array('data' => t('End date'), 'field' => 'ended'),
@@ -762,11 +784,11 @@ function elearn_course_activity($ciid){
     'header' => $header,
     'rows' => $rows,
     'attributes' => array(),
-    'caption' => "20 attendies listed per page",
+    'caption' => "20 trainees listed per page",
     'options' => array(),
     'colgroups' => array(),
     'sticky' => false,
-    'empty' => "No attendies added yet"
+    'empty' => "No trainees added yet"
       )
   );
   $output .= theme(
@@ -804,7 +826,7 @@ function elearn_course_activate_form($form, &$form_state, $course_instance_id = 
     '#markup' => "<p>" . t("Date bought: "). format_date($date_bought,'short') . "</p>"
   );
   $form['numb_attendies'] = array(
-    '#markup' => "<p>" . t("Number of attendies: "). $number_attendies . "</p>"
+    '#markup' => "<p>" . t("Number of trainees: "). $number_attendies . "</p>"
   );
   $form['attension'] = array(
     '#markup' => "<p class=\"error\">" . t("Please be aware that this action can NOT be undane or altered!"). "</p>"
