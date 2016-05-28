@@ -521,6 +521,9 @@ function elearn_commerce_payment_order_paid_in_full($order, $transaction) {
       'created' => REQUEST_TIME,
   ))
   ->execute();
+  
+  //give access to Company to Course holder, Course and Quiz  - without scheduling revoking
+  $access_granted = rules_invoke_component('rules_comp_grant_access_to_course_holder_course_and_quiz_2', $course_holder, $order->uid);
 }
 
 
@@ -999,9 +1002,13 @@ function course_activate_submit($form, &$form_state){
 	}
   $params['company_name'] = $company_name;
   $sent_emails = array();
+  //give access to Course holder, Course and Quiz  to the Company
+  // in fact Company already has access (see  elearn_commerce_payment_order_paid_in_full) 
+  // but this component will schedule the revoking too
+  $access_granted = rules_invoke_component('rules_comp_grant_access_to_course_holder_course_and_quiz', $course_holder, $course_instanse->uid);
+  //give access to Course holder, Course and Quiz  to all attendies
   foreach($list_of_emails as $k => $email){
     $user_account = user_load_by_mail($email);
-    //give permissions to Course holder, Course and Quiz  - rule?
     $access_granted = rules_invoke_component('rules_comp_grant_access_to_course_holder_course_and_quiz', $course_holder, $user_account);
     //write in the DB
     //var_dump($access_granted); exit;
