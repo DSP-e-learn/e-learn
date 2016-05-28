@@ -499,7 +499,7 @@ function elearn_line_item_2_new($order_id = 0) {
 
 
 function elearn_commerce_payment_order_paid_in_full($order, $transaction) {
-  
+  commerce_order_status_update($order, 'completed');
   $product_ids = array();
   foreach (entity_metadata_wrapper('commerce_order', $order)->commerce_line_items as $delta => $line_item_wrapper) {
     if (in_array($line_item_wrapper->type->value(), commerce_product_line_item_types())) {
