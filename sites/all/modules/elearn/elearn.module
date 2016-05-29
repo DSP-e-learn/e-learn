@@ -660,7 +660,7 @@ function elearn_my_courses($uid){
     $title = $curse_holder ? $curse_holder->title : "";
     $rows[$row->order_id] = array(
       "data"=>array(
-          $row->order_id, $title, $row->numb_attendies, format_date($row->created,'short'), $actvated, $ended
+          $row->order_id,  l($title, drupal_get_path_alias('node/'. $curse_holder->nid)), $row->numb_attendies, format_date($row->created,'short'), $actvated, $ended
         ),
       "class"=> array("class" => "course-instance-". $row->order_id),
     );
