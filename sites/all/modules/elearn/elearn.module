@@ -589,7 +589,7 @@ function _his_user_bought_quiz($result_id){
 function elearn_menu(){
 
    $items['user/%/courses-i-bought'] = array(
-    'title' => 'Courses I bought',
+    'title' => 'My bought courses',
     'page callback' => 'elearn_my_courses',
     'page arguments' =>array(1),
     'access callback' => 'elearn_my_courses_access',
@@ -637,14 +637,14 @@ function elearn_my_courses_access($uid){
 function elearn_my_courses($uid){
   $output = "<h5 class=\"error\">" .t('Atention: A course can be activated ONLY during an ONE YEAR period after the purchase.')."</h5>";
   $header = array(
-    array('data' => t('Order ID'), 'field' => 'order_id', 'sort' => 'asc'),
-    array('data' => t('Name'), 'field' => 'created'),
-    array('data' => t('Trainees'), 'field' => 'numb_attendies'),
-    array('data' => t('Date Bought'), 'field' => 'created'),
+    array('data' => t('Order number'), 'field' => 'order_id', 'sort' => 'asc'),
+    array('data' => t('Course title'), 'field' => 'created'),
+   // array('data' => t('Trainees'), 'field' => 'numb_attendies'),
+    array('data' => t('Date of buying'), 'field' => 'created'),
     array('data' => t('Start date'), 'field' => 'activated'),
     array('data' => t('End date'), 'field' => 'ended'),
   );
-  $header['operations'] = array('data' => t('Operations'));
+  $header['operations'] = array('data' => t('Course status'));
  // $destination = drupal_get_destination();
 
   $query = db_select('course_instance', 'c')->extend('TableSort')->extend('PagerDefault')->limit(20)->orderByHeader($header);
@@ -660,7 +660,12 @@ function elearn_my_courses($uid){
     $title = $curse_holder ? $curse_holder->title : "";
     $rows[$row->order_id] = array(
       "data"=>array(
-          $row->order_id,  l($title, drupal_get_path_alias('node/'. $curse_holder->nid)), $row->numb_attendies, format_date($row->created,'short'), $actvated, $ended
+          l($row->order_id, drupal_get_path_alias('user/'. $curse_holder->uid.'/orders/'.$row->order_id)),  
+          l($title, drupal_get_path_alias('node/'. $curse_holder->nid)), 
+         // $row->numb_attendies, 
+          format_date($row->created,'short'), 
+          $actvated, 
+          $ended
         ),
       "class"=> array("class" => "course-instance-". $row->order_id),
     );
@@ -683,6 +688,13 @@ function elearn_my_courses($uid){
       $operations['view_activity'] = array(
         'title' => t('View activity'),
         'href' => 'course/' . $row->ciid . '/activity/' ,
+      );
+    }
+    if( (!$row->activated && $days_since_creation > 366) || ($row->activated && $row->ended < time()) ){
+      $destination = drupal_get_destination();
+      $operations['expired'] = array(
+        'title' => t('Expired'),
+       // 'href' => 'course/' . $row->ciid . '/activity/' ,
       );
     }
     // Render an unordered list of operations links.
