@@ -821,7 +821,7 @@ function elearn_my_sold_courses($uid){
           format_date($row->created,'short'), 
           $row->course_nid,
           l($course_title, drupal_get_path_alias('node/'. $row->course_nid)), 
-          l($quiz_title, drupal_get_path_alias('node/'. $row->course_nid)), 
+          l($quiz_title, drupal_get_path_alias('node/'. $row->quiz_nid)), 
           l($company_name, 'profile/'. $company->uid . "/view"), 
           $row->numb_attendies, 
           $order_total_price,
