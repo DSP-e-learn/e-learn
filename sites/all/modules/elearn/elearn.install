@@ -20,7 +20,7 @@ function elearn_schema() {
         'type' => 'int',
         'unsigned' => TRUE,
         'not null' => TRUE,
-        'description' => t('the id of the order with which the course was bought'),
+        'description' => t('The id of the order with which the course was bought'),
       ),
       'uid' => array(
         'description' => 'The Company ({users}.uid) that bought this Course.',
@@ -28,11 +28,29 @@ function elearn_schema() {
         'not null' => TRUE,
         'default' => 0,
       ),
+      'trainer_uid' => array(
+        'description' => 'The Trainer ({users}.uid) that created this Course.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),      
       'course_holder_id' => array(
         'type' => 'int',
         'unsigned' => TRUE,
         'not null' => TRUE,
         'description' => t('nid of the Course holder'),
+      ),
+      'course_nid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => t('nid of the Course '),
+      ),
+      'quiz_nid' => array(
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => t('nid of the Quiz'),
       ),
       'numb_attendies' => array(
         'type' => 'int',

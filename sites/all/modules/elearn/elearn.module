@@ -511,12 +511,14 @@ function elearn_commerce_payment_order_paid_in_full($order, $transaction) {
   $number_attendies = $number_attendies[0];
   $product_wrapper = entity_metadata_wrapper('commerce_product', $product_id);
   $course_holder = $product_wrapper->field_course_holder_reference->value();
-  
   $nid = db_insert('course_instance') // Table name no longer needs {}
     ->fields(array(
       'order_id' => $order->order_id,
       'uid' => $order->uid,
+      'trainer_uid' => $course_holder->uid,
       'course_holder_id' => $course_holder->nid,
+      'course_nid' => $course_holder->field_reference_to_course['und']['0']['target_id'],
+      'quiz_nid' => $course_holder->field_reference_to_quiz['und']['0']['target_id'],
       'numb_attendies' => $number_attendies,
       'created' => REQUEST_TIME,
   ))
@@ -535,6 +537,7 @@ function elearn_menu_alter(&$items) {// echo "dddd"; exit;
     $items['user/%views_arg/orders']['access callback'] = '_user_orders_accesscheck';
     $items['node/%/quiz-results/%/view']['access callback'] = '_user_quiz_results_accesscheck';
     $items['node/%/quiz-results/%/view']['access arguments'] = array(3);
+    $items['user/%user/orders/%commerce_order']['access callback'] = '_order_view_access';
 
 }
 
@@ -566,6 +569,22 @@ function _user_quiz_results_accesscheck($result_id){
   return FALSE;
 }
 
+/**
+ * Callback to allow Trainers to see orders for their Courses
+ */
+function _order_view_access($order){
+  global $user;
+  $current_user_is_author_of_the_product_from_this_order = false;
+  foreach (entity_metadata_wrapper('commerce_order', $order)->commerce_line_items as $delta => $line_item_wrapper) {
+    if (in_array($line_item_wrapper->type->value(), commerce_product_line_item_types())) {
+      $product = $line_item_wrapper->commerce_product->value();
+      if($product->uid == $user->uid) {$current_user_is_author_of_the_product_from_this_order = true;}
+    }
+  }
+  return  $current_user_is_author_of_the_product_from_this_order || commerce_order_access('view', $order);
+}
+
+
 
 /**
  * Helper function to determine if a user has bought a course that referenses a quiz for a given quiz_result_id.
@@ -587,12 +606,12 @@ function _his_user_bought_quiz($result_id){
 
 
 function elearn_menu(){
-
-   $items['user/%/courses-i-bought'] = array(
+//for COMPANY
+  $items['user/%/courses-i-bought'] = array(
     'title' => 'My bought courses',
-    'page callback' => 'elearn_my_courses',
+    'page callback' => 'elearn_my_bought_courses',
     'page arguments' =>array(1),
-    'access callback' => 'elearn_my_courses_access',
+    'access callback' => 'elearn_my_bought_courses_access',
     'access arguments' => array(1),
     'type' =>  MENU_LOCAL_TASK,
      'weight' =>100
@@ -613,28 +632,47 @@ function elearn_menu(){
     'access arguments' => array(1),
     'type' => MENU_NORMAL_ITEM,
   );
+//for TRAINER
+  $items['user/%/courses-i-sold'] = array(
+    'title' => 'My sold courses',
+    'page callback' => 'elearn_my_sold_courses',
+    'page arguments' =>array(1),
+    'access callback' => 'elearn_my_sold_courses_access',
+    'access arguments' => array(1),
+    'type' =>  MENU_LOCAL_TASK,
+     'weight' =>100
+  );
+
+   $items['profile/%user/view'] = array(
+    'title' => 'User account',
+    'page callback' => 'user_view_page',
+    'access callback' => TRUE,
+    'page arguments' => array(1),
+    'file' => '../../../../modules/user/user.module',
+    'type' => MENU_NORMAL_ITEM,
+
+  );
   return $items;
 }
 
 
-//only user that bought course has the right to activate it
-function elearn_course_activate_access($ciid){
+//every COMPANY can see only the courses it has bought
+function elearn_my_bought_courses_access($uid){
   global $user;
-  $uid = db_query("SELECT uid FROM {course_instance} WHERE ciid = :ciid", array(":ciid" => $ciid))->fetchField();
-  if ($user->uid == $uid)  return TRUE;
-  else return FALSE; 
+  if ($user->uid == $uid && !in_array("user", $user->roles) &&  !in_array("trainer", $user->roles)){  return TRUE;}
+  else {return FALSE;}
+}
+
+//every TRAINER can see only his own  courses
+function elearn_my_sold_courses_access($uid){//var_dump($uid);
+  global $user;
+  if ($user->uid == $uid && in_array("trainer", $user->roles) ){  return TRUE;}
+  else {return FALSE;}
 }
 
 
-//every user can see only the courses he has bought
-function elearn_my_courses_access($uid){
-  global $user;
-  if ($user->uid == $uid && !in_array("user", $user->roles) &&  !in_array("trainer", $user->roles))  return TRUE;
-  else return FALSE;
-}
-
-
-function elearn_my_courses($uid){
+//for Company
+function elearn_my_bought_courses($uid){
   $output = "<h5 class=\"error\">" .t('Atention: A course can be activated ONLY during an ONE YEAR period after the purchase.')."</h5>";
   $header = array(
     array('data' => t('Order number'), 'field' => 'order_id', 'sort' => 'asc'),
@@ -722,6 +760,97 @@ function elearn_my_courses($uid){
       'pager', array('tags' => array() ) );
   return $output;
 }
+
+
+//for Trainer
+function elearn_my_sold_courses($uid){
+  $output = ""; //"<h5 class=\"error\">" .t('Some text here')."</h5>";
+  $header = array(
+    array('data' => t('Order number'), 'field' => 'order_id', 'sort' => 'asc'),
+    array('data' => t('Order date'), 'field' => 'created'),
+    array('data' => t('Course number'), 'field' => 'course_nid'),
+    array('data' => t('Course title')),
+    array('data' => t('Course test title')),
+    array('data' => t('Customer name')),
+    array('data' => t('Number of trainees'), 'field' => 'numb_attendies'),
+    array('data' => t('Total price')),
+    array('data' => t('Start date'), 'field' => 'activated'),
+    array('data' => t('End date'), 'field' => 'ended'),
+    array('data' => t('Course status')),
+  );
+  //$header['operations'] = array('data' => t('Course status'));
+ // $destination = drupal_get_destination();
+
+  $query = db_select('course_instance', 'c')->extend('TableSort')->extend('PagerDefault')->limit(20)->orderByHeader($header);
+  $query->fields('c', array('ciid', 'order_id',  'uid', 'trainer_uid','course_holder_id', 'course_nid', 'quiz_nid','numb_attendies', 'created', 'activated', 'ended'));
+  $query->condition('c.trainer_uid', $uid, '=');  
+  $result = $query->execute();
+  $rows = array();
+
+  foreach ($result as $row) {
+    
+    //TODO find a way to get title without loading the node
+    $course = node_load($row->course_nid);//var_dump($course);
+    $course_title = $course ? $course->title : "";
+
+    $quiz = node_load($row->quiz_nid);
+    $quiz_title = $quiz ? $quiz->title : "";
+
+    $company = user_load($row->uid);
+    $company_name = $company->name;
+  
+    $order = commerce_order_load($row->order_id);
+    $wrapper = entity_metadata_wrapper('commerce_order', $order);
+    $total = $wrapper->commerce_order_total->amount->value();
+    $currency_code = $wrapper->commerce_order_total->currency_code->value();
+    $order_total_price = commerce_currency_format($total, $currency_code);
+
+    
+    $actvated = $row->activated ? format_date($row->activated,'short') : t("not activated");
+    $ended = $row->ended ? format_date($row->ended,'short') : t("not ended");
+    
+    if (!$row->activated ) {$course_instance_status = t('not active');}
+    if ($row->activated  && $row->ended && $row->ended < time()) {$course_instance_status = t('active');}
+    if ($row->activated  && $row->ended && $row->ended > time()) {$course_instance_status = t('expired');}
+    $days_since_creation = (time() - $row->created)/(60*60*24); 
+    if( (!$row->activated && $days_since_creation > 366) || ($row->activated && $row->ended < time()) ){$course_instance_status = t('expired');}
+
+    $rows[$row->order_id] = array(
+      "data"=>array(
+          l($row->order_id, drupal_get_path_alias('user/'. $row->uid.'/orders/'.$row->order_id)),  
+          format_date($row->created,'short'), 
+          $row->course_nid,
+          l($course_title, drupal_get_path_alias('node/'. $row->course_nid)), 
+          l($quiz_title, drupal_get_path_alias('node/'. $row->course_nid)), 
+          l($company_name, 'profile/'. $company->uid . "/view"), 
+          $row->numb_attendies, 
+          $order_total_price,
+          $actvated, 
+          $ended,
+          $course_instance_status
+        ),
+      "class"=> array("class" => "course-instance-". $row->order_id),
+    );
+
+  }
+
+  $output .= theme_table(array(
+    'header' => $header,
+    'rows' => $rows,
+    'attributes' => array(),
+    'caption' => "20 courses listed per page",
+    'options' => array(),
+    'colgroups' => array(),
+    'sticky' => false,
+    'empty' => "No courses sold yet"
+      )
+  );
+  $output .= theme(
+      'pager', array('tags' => array() ) );
+  return $output;
+}
+
+
 
 function elearn_course_activity($ciid){
   global $user;
@@ -1178,6 +1307,7 @@ function elearn_exit() {
    }
   }
 }
+
 
 
 function elearn_field_widget_addressfield_standard_form_alter(&$element, &$form_state, $context) { 
