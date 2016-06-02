@@ -696,9 +696,12 @@ function elearn_my_bought_courses($uid){
     $actvated = $row->activated ? format_date($row->activated,'short') : t("not activated");
     $ended = $row->ended ? format_date($row->ended,'short') : t("not ended");
     $title = $curse_holder ? $curse_holder->title : "";
+    //TODO find a way to get title without loading the node
+    $order = commerce_order_load($row->order_id);
+    
     $rows[$row->order_id] = array(
       "data"=>array(
-          l($row->order_id, drupal_get_path_alias('user/'. $curse_holder->uid.'/orders/'.$row->order_id)),  
+          l($order->order_number, drupal_get_path_alias('user/'. $uid.'/orders/'.$row->order_id)),  
           l($title, drupal_get_path_alias('node/'. $curse_holder->nid)), 
          // $row->numb_attendies, 
           format_date($row->created,'short'), 
