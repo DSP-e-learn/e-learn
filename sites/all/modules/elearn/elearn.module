@@ -1332,3 +1332,49 @@ function elearn_init() {
     drupal_exit();
   }
 }
+
+/**
+ * Implements hook_user_login().
+ */
+function elearn_user_login(&$edit, $account) {
+  // Do not redirect when the user is resetting her password.
+  if (!isset($_POST['form_id']) || $_POST['form_id'] != 'user_pass_reset') {
+    if (in_array('company', $account->roles)) {
+      drupal_goto('user/' . $account->uid . '/orders');
+    }
+    if (in_array('trainer', $account->roles)) {
+      drupal_goto('user/' . $account->uid . '/own-courses');
+    }
+    if (in_array('user', $account->roles)) {
+      drupal_goto('user/' . $account->uid . '/courses');
+    }
+  }
+}
+
+
+/**
+ * Implements hook_page_url_outbound_alter().
+ *
+ * This alters anything parsed through the url() function to replace the <front> string
+ *  with an alternative string instead of the site_frontpage setting.
+ */
+function elearn_url_outbound_alter(&$path, &$options, &$original_path) {
+  global $user;
+    // check if path is set to 'front_page' as this is our virtual home
+    // page and doesn't work properly unless used from home page.
+    if ($path == 'front_page') {
+      $original_path = $path = '';
+    }
+    if (in_array('company', $user->roles)) {
+        $newpath = 'user/' . $user->uid . '/orders';
+      }
+    if (in_array('trainer', $user->roles)) {
+      $newpath = 'user/' . $user->uid . '/own-courses';
+    }
+    if (in_array('user', $user->roles)) {
+      $newpath = 'user/' . $user->uid . '/courses';
+    }
+    if (($path == '<front>' || empty($path)) && !empty($newpath)) {
+      $original_path = $path = $newpath;
+    }
+}
