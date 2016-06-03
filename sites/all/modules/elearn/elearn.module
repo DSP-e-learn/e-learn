@@ -9,9 +9,12 @@ function elearn_form_alter(&$form, &$form_state, $form_id) {
 //var_dump($form_id);
   global $user;
     if ($form_id == 'course_node_form') {
-        //hide quiz reference field
-	//$form['field_quiz']['und']['#type']= 'hidden'; // select
-        $form['field_quiz']['und']['0']['target_id']['#type']= 'hidden'; //autocompleate
+    
+      //hide quiz reference field
+      //$form['field_quiz']['und']['#type']= 'hidden'; // select
+      $form['field_quiz']['und']['0']['target_id']['#type']= 'hidden'; //autocompleate
+      unset ($form['actions']['preview']);
+
     }
 
     if ($form_id == 'quiz_node_form') {
@@ -74,7 +77,7 @@ function elearn_form_alter(&$form, &$form_state, $form_id) {
     
     if (strstr($form_id, 'commerce_cart_add_to_cart_form')) {
       $form['warning'] = array(
-        '#markup' => t('<br /><span class="price-note"> Please note that the price will be altered according to number of trainees entered</span>'),
+        '#markup' => t('<br /><span class="price-note"> Please note that the total price will be altered according to number of trainees entered</span>'),
         '#weight' => 100
       );
     }
@@ -232,6 +235,9 @@ function elearn_node_update($node){
       $ewrapper->field_pd_category->set(intval($category[0]['tid']));
       $short_description = field_get_items('node', $course, 'field_course_short_description');
       $ewrapper->field_course_short_description->set($short_description['0']['value']);
+      $additional_price = field_get_items('node', $course, 'field_additional_price');
+      $ewrapper->field_additional_price->set($additional_price['0']['value']);
+
       $ewrapper->save(); 
     }
   }
@@ -340,7 +346,7 @@ function elearn_form_commerce_cart_add_to_cart_form_alter(&$form, &$form_state) 
   if (!array_intersect($user->roles, $roles_allowed_to_buy)) {
     // Display a help message.
     $form['help'] = array(
-      '#markup' => t("<div style=\"color:#c00\">You do not have permission to buy this product. Please login with your company/'s account</div>"),
+      '#markup' => t("<div style=\"color:#c00\">You do not have permission to buy this product. Please <a href='/user'>login</a> with your company's account</div>"),
     );
     // Disable the whole form.
     $form['#disabled'] = TRUE;
@@ -1317,3 +1323,12 @@ function elearn_field_widget_addressfield_standard_form_alter(&$element, &$form_
     $element['#type'] = 'container'; 
 }
 
+
+//TODO change this with more clean way to conrol access to view courses_created_from_current_user. Page user/%/own-courses
+function elearn_init() {
+  global $user;
+  if(arg(0) == 'user' && arg(2) == "own-courses" && $user->uid != arg(1)) { 
+    drupal_access_denied();
+    drupal_exit();
+  }
+}
