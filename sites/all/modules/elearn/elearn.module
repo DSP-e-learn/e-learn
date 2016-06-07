@@ -544,6 +544,7 @@ function elearn_menu_alter(&$items) {// echo "dddd"; exit;
     $items['node/%/quiz-results/%/view']['access callback'] = '_user_quiz_results_accesscheck';
     $items['node/%/quiz-results/%/view']['access arguments'] = array(3);
     $items['user/%user/orders/%commerce_order']['access callback'] = '_order_view_access';
+    $items['node/%quiz_menu/quiz/questions']['weight'] = 0;
 
 }
 
@@ -1387,4 +1388,19 @@ function elearn_url_outbound_alter(&$path, &$options, &$original_path) {
     if (($path == '<front>' || empty($path)) && !empty($newpath)) {
       $original_path = $path = $newpath;
     }
+}
+
+
+/**
+ * Implements hook_quiz_question_relationship_insert().
+ *
+ */
+function elearn_quiz_question_relationship_insert($quiz_question_relationship) {
+  global $user;
+  $number_of_questions = quiz_get_number_of_questions($quiz_question_relationship->parent_vid, $quiz_question_relationship->parent_nid);
+
+  if ($number_of_questions >= 3) {
+      drupal_set_message(t('This Test now has enought questions. You can <a href="!publish_url">Publish the Course</a> or continue adding questions. You can later activate the Course from <a href="/user/!uid/own-courses">Courses by me</a>', array('!publish_url'=>'/asdf', '!uid'=>$user->uid)), 'status');
+      
+  }
 }
