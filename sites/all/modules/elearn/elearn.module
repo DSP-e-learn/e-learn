@@ -662,6 +662,16 @@ function elearn_menu(){
 }
 
 
+//only user that bought course has the right to activate it
+function elearn_course_activate_access($ciid){
+  global $user;
+  $uid = db_query("SELECT uid FROM {course_instance} WHERE ciid = :ciid", array(":ciid" => $ciid))->fetchField();
+  if ($user->uid == $uid)  return TRUE;
+  else return FALSE; 
+ }
+
+
+
 //every COMPANY can see only the courses it has bought
 function elearn_my_bought_courses_access($uid){
   global $user;
