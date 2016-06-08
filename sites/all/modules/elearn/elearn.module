@@ -693,6 +693,7 @@ function elearn_my_bought_courses($uid){
   $output = "<h5 class=\"error\">" .t('Atention: A course can be activated ONLY during an ONE YEAR period after the purchase.')."</h5>";
   $header = array(
     array('data' => t('Order number'), 'field' => 'order_id', 'sort' => 'asc'),
+    array('data' => t('Course number'), 'field' => 'course_nid'),
     array('data' => t('Course title'), 'field' => 'created'),
    // array('data' => t('Trainees'), 'field' => 'numb_attendies'),
     array('data' => t('Date of buying'), 'field' => 'created'),
@@ -703,7 +704,7 @@ function elearn_my_bought_courses($uid){
  // $destination = drupal_get_destination();
 
   $query = db_select('course_instance', 'c')->extend('TableSort')->extend('PagerDefault')->limit(20)->orderByHeader($header);
-  $query->fields('c', array('ciid', 'order_id', 'course_holder_id', 'numb_attendies', 'created', 'activated', 'ended'));
+  $query->fields('c', array('ciid', 'order_id', 'course_holder_id', 'course_nid', 'numb_attendies', 'created', 'activated', 'ended'));
   $query->condition('c.uid', $uid, '=');  
   $result = $query->execute();
   $rows = array();
@@ -719,6 +720,7 @@ function elearn_my_bought_courses($uid){
     $rows[$row->order_id] = array(
       "data"=>array(
           l($order->order_number, drupal_get_path_alias('user/'. $uid.'/orders/'.$row->order_id)),  
+          $row->course_nid,
           l($title, drupal_get_path_alias('node/'. $curse_holder->nid)), 
          // $row->numb_attendies, 
           format_date($row->created,'short'), 
