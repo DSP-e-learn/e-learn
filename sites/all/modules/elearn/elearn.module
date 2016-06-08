@@ -237,6 +237,7 @@ function elearn_node_update($node){
       $ewrapper->field_course_short_description->set($short_description['0']['value']);
       $additional_price = field_get_items('node', $course, 'field_additional_price');
       $ewrapper->field_additional_price->set($additional_price['0']['value']);
+      $ewrapper->field_course_nid->set($course->nid);
 
       $ewrapper->save(); 
     }
