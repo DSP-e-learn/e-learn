@@ -1407,3 +1407,60 @@ function elearn_quiz_question_relationship_insert($quiz_question_relationship) {
       
   }
 }
+
+
+/**
+ * Implements hook_commerce_order_view().
+ * coppied from commerce_billy_pdf
+ */
+function elearn_commerce_order_view($order, $view_mode) {
+  // Add content variables for the PDF generation.
+  $settings = variable_get('commerce_billy_pdf_text_settings', array());
+  $custom_date_format = !empty($settings['invoice_date_format']) ? $settings['invoice_date_format'] : 'Y-m-d';
+  if ($view_mode == "pdf" || $view_mode == 'canceled') {
+    $order->content['invoice_footer'] = array(
+      '#markup' => isset($settings['invoice_footer']) ? $settings['invoice_footer'] : '',
+    );
+    $order->content['invoice_header'] = array(
+      '#markup' => isset($settings['invoice_header']) ? $settings['invoice_header'] : '',
+    );
+    $order->content['invoice_text'] = array(
+      '#markup' => isset($settings['invoice_text']) ? $settings['invoice_text'] : '',
+    );
+    $date_field_name = $view_mode == 'pdf' ? 'field_commerce_billy_i_date' : 'field_commerce_billy_cancel_date';
+    $date_formatted = format_date($order->{$date_field_name}[LANGUAGE_NONE][0]['value'], 'custom', $custom_date_format);
+    if (!empty($settings['invoice_location'])) {
+      $invoice_header_date_text = t('@location, @date', array('@location' => $settings['invoice_location'], '@date' => $date_formatted));
+    }
+    else {
+      $invoice_header_date_text = $date_formatted;
+    }
+    $order->content['invoice_header_date'] = array(
+      '#markup' => $invoice_header_date_text,
+    );
+    $order->content['order_number'] = array(
+      '#markup' => t('Invoice #: @id', array('@id' => $order->order_number)),
+    );
+//    $order->content['order_id'] = array(
+//      '#markup' => t('Order No.: @id', array('@id' => $order->order_id)),
+//    );
+    $order->content['invoice_logo'] = array(
+      '#value' => variable_get('commerce_billy_pdf_logo', 'misc/druplicon.png'),
+    );
+    $trainer = profile2_load_by_user($order->uid);
+    $order->content['company_full_name'] = array(
+      '#markup' => $trainer['company']->field_company_full_name['und']['0']['value'],
+    );
+    $order->content['company_VAT'] = array(
+      '#markup' => $trainer['company']->field_vat['und']['0']['value'],
+    );
+    
+    $handlers = array('address' => 'address'); //There are other formats, but this one will output the mailing address. 
+    $context = array('mode' => 'render');
+    $address_render_array = addressfield_generate($trainer['company']->field_company_address['und']['0'] , $handlers, $context);
+    $address = drupal_render($address_render_array);   
+    $order->content['company_address'] = array(
+      '#markup' => $address  ,
+    );
+  }
+}
