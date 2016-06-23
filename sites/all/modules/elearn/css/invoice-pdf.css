@@ -15,6 +15,6 @@ table.customer-supplier th {text-align: center; background: #eaeaea}
 .view-line-items-for-invoice-to-the-company-buyer table td, 
 .view-line-items-for-invoice-to-the-company-buyer table th{ border: 1px solid grey; padding:5px; text-align: center;}
 .view-line-items-for-invoice-to-the-company-buyer table td.views-align-right{text-align: right;}
-
-table.order-totals {margin-top: 10px;float: right;  border: 1px solid grey;     border-collapse: collapse;}
+.order-totals{float: right;}
+table.order-totals {margin-top: 10px;  border: 1px solid grey;     border-collapse: collapse;}
 table.order-totals td, table.order-totals th{ border: 1px solid grey; text-align: right; padding-right: 5px;padding-left: 50px;}

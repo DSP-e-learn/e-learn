@@ -82,7 +82,7 @@
   <div class="line-items">
     <div class="line-items-view"><?php print render($content['commerce_line_items']); ?></div>
     <!--<div class="order-total"><?php //print render($content['commerce_order_total']); ?></div>-->
-    <div>    
+    <div class="order-totals">    
     <table  class="order-totals" border="0" >
           <tr>
               <td> Tax base                         </td>
