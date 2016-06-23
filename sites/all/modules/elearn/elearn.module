@@ -1454,7 +1454,9 @@ function elearn_commerce_order_view($order, $view_mode) {
     $order->content['company_VAT'] = array(
       '#markup' => $trainer['company']->field_vat['und']['0']['value'],
     );
-    
+    $order->content['company_reg_numb'] = array(
+      '#markup' => $trainer['company']->field_registration_number['und']['0']['value'],
+    );
     $handlers = array('address' => 'address'); //There are other formats, but this one will output the mailing address. 
     $context = array('mode' => 'render');
     $address_render_array = addressfield_generate($trainer['company']->field_company_address['und']['0'] , $handlers, $context);

@@ -38,7 +38,7 @@
                       </tr>
                       <tr>
                           <td> Registration number                         </td>
-                          <td>                          </td>
+                          <td> <?php print render($content['company_reg_numb']); ?>                      </td>
 
                       </tr> 
                       <tr>
