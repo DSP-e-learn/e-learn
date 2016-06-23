@@ -82,25 +82,28 @@
   <div class="line-items">
     <div class="line-items-view"><?php print render($content['commerce_line_items']); ?></div>
     <!--<div class="order-total"><?php //print render($content['commerce_order_total']); ?></div>-->
-    <div class="order-totals">    
-    <table  class="order-totals" border="0" >
-          <tr>
-              <td> Tax base                         </td>
-              <td> <?php print render($content['commerce_order_total']); ?></td>
+        <table class="totals-wrapper" width="100%" border="0">
+            <tr>
+                <td width="65%">&nbsp;</td>
+                <td>
+                  <table  class="order-totals" border="0" >
+                        <tr>
+                            <td> Tax base                         </td>
+                            <td> <?php print render($content['commerce_order_total']); ?></td>
+                        </tr>
+                         <tr>
+                            <td> VAT rate                          </td>
+                            <td> 0.00</td>
+                        </tr>
+                        <tr>
+                            <th> Total amaunt                        </th>
+                            <th> <?php print render($content['commerce_order_total']); ?></th>
+                        </tr>
 
+                    </table>
+                </td>
           </tr>
-           <tr>
-              <td> VAT rate                          </td>
-              <td> 0.00</td>
-          </tr>
-          <tr>
-              <th> Total amaunt                        </th>
-              <th> <?php print render($content['commerce_order_total']); ?></th>
-
-          </tr>
-
-      </table>
-    </div>
+        </table>
   </div>
   <div class="invoice-text"><?php print render($content['invoice_text']); ?></div>
 

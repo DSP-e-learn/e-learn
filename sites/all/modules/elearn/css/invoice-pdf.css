@@ -3,9 +3,10 @@
 .invoice-number, .order-id, .invoice-footer {
   position: initial;
 }
+.invoice-footer {margin-top: 30px}
 .invoice-header-date{text-align:left; margin:0;}
 .line-items{margin-top: 50px;}
-.invoice-text{margin-top: 150px;}
+.invoice-text{margin-top: 50px;}
 
 .customer{ margin:0;border: 0px solid red;}
 .supplier {border: 0px solid red;float:right;}
@@ -15,6 +16,7 @@ table.customer-supplier th {text-align: center; background: #eaeaea}
 .view-line-items-for-invoice-to-the-company-buyer table td, 
 .view-line-items-for-invoice-to-the-company-buyer table th{ border: 1px solid grey; padding:5px; text-align: center;}
 .view-line-items-for-invoice-to-the-company-buyer table td.views-align-right{text-align: right;}
-.order-totals{float: right;}
+div.order-totals{float: right;text-align: right;}
 table.order-totals {margin-top: 10px;  border: 1px solid grey;     border-collapse: collapse;}
 table.order-totals td, table.order-totals th{ border: 1px solid grey; text-align: right; padding-right: 5px;padding-left: 50px;}
+.totals-wrapper td{text-align: right;padding:0}
