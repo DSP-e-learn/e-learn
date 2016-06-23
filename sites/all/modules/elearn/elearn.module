@@ -833,8 +833,8 @@ function elearn_my_sold_courses($uid){
     $ended = $row->ended ? format_date($row->ended,'short') : t("not ended");
     
     if (!$row->activated ) {$course_instance_status = t('not active');}
-    if ($row->activated  && $row->ended && $row->ended < time()) {$course_instance_status = t('active');}
-    if ($row->activated  && $row->ended && $row->ended > time()) {$course_instance_status = t('expired');}
+    if ($row->activated  && $row->ended && $row->ended < time()) {$course_instance_status = t('expired');}
+    if ($row->activated  && $row->ended && $row->ended > time()) {$course_instance_status = t('active');}
     $days_since_creation = (time() - $row->created)/(60*60*24); 
     if( (!$row->activated && $days_since_creation > 366) || ($row->activated && $row->ended < time()) ){$course_instance_status = t('expired');}
 
