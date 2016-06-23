@@ -720,7 +720,7 @@ function elearn_my_bought_courses($uid){
     
     $rows[$row->order_id] = array(
       "data"=>array(
-          l($order->order_number, drupal_get_path_alias('user/'. $uid.'/orders/'.$row->order_id)),  
+          l($order->order_id, drupal_get_path_alias('user/'. $uid.'/orders/'.$row->order_id)),  
           $row->course_nid,
           l($title, drupal_get_path_alias('node/'. $curse_holder->nid)), 
          // $row->numb_attendies, 
