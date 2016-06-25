@@ -7,7 +7,6 @@
  */
 
 ?>
-<?php print render($content['li']); ?>
 <div class="invoice-invoiced">
   <div class="header">
     <!--<img src="<?php print $content['invoice_logo']['#value']; ?>"/> -->
