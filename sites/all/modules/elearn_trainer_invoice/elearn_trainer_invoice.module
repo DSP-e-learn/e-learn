@@ -525,7 +525,8 @@ function elearn_trainer_invoice_cron() {
           $invoices[$course->uid]['line_items'][] = array("liid" => $line_item_wrapper->raw(), "order_id" => $order->order_id);
           //echo "<br>trainer_uid=$course->uid---------order_id=$order->order_id---line_item_id=". 
           //    $line_item_wrapper->raw() ."--- total_amount=" .$line_item_wrapper->commerce_total->amount->value() . 
-          //    "---- currency_code=" .$line_item_wrapper->commerce_total->currency_code->value();        }
+          //    "---- currency_code=" .$line_item_wrapper->commerce_total->currency_code->value();        
+        }
       }
     }
 
