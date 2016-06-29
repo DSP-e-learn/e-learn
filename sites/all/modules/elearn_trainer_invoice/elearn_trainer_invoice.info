@@ -1,0 +1,7 @@
+name = E-learn Trainer Invoice
+description = Invoice from Trainer to the site
+
+version = "7.x-1.0"
+core = "7.x"
+
+

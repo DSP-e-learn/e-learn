@@ -1,0 +1,569 @@
+<?php
+
+/*
+ * Implements hook_menu
+ */
+
+function elearn_trainer_invoice_menu() {
+
+//for TRAINER
+  $items['user/%/my-course-fees'] = array(
+    'title' => 'My Course Fees',
+    'page callback' => 'elearn_trainer_invoice_my_course_fees',
+    'page arguments' => array(1),
+    'access callback' => 'elearn_trainer_invoice_my_invoices_access',
+    'access arguments' => array(1),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 110
+  );
+  $items['user/%/my-invoices'] = array(
+    'title' => 'My Invoices',
+    'page callback' => 'elearn_trainer_invoice_my_invoices',
+    'page arguments' => array(1),
+    'access callback' => 'elearn_trainer_invoice_my_invoices_access',
+    'access arguments' => array(1),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 110
+  );
+  $items['user/%/my-invoices/trainer-invoice-issue/%'] = array(
+    'title' => 'Issue Invoice',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('trainer_invoice_issue_invoice', 1, 4),
+    'access callback' => 'elearn_trainer_invoice_pdf_access',
+    'access arguments' => array(4),
+    'type' => MENU_CALLBACK,
+  );
+  $items['user/%/my-invoices/trainer-invoice-pdf-preview/%'] = array(
+    'title' => 'Trainer Invoice PREVEW ',
+    'page callback' => 'elearn_trainer_invoice_html',
+    'page arguments' => array(4, 'include' => true),
+    'access callback' => 'elearn_trainer_invoice_pdf_access',
+    'access arguments' => array(4),
+    'type' => MENU_CALLBACK,
+  );
+
+  $items['trainer-invoice-pdf/%'] = array(
+    'title' => 'Trainer Invoice',
+    'page callback' => 'elearn_trainer_invoice_pdf',
+    'page arguments' => array(1),
+    'access callback' => 'elearn_trainer_invoice_pdf_access',
+    'access arguments' => array(1),
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+function elearn_trainer_invoice_theme() {
+  // Register the template specific for the commerce pdf order.
+  $items['elearn_trainer_invoice_page'] = array(
+    'variables' => array('trainer_invoice' => array(), 'inline_css' => array()),
+    'template' => 'elearn_trainer_invoice_page',
+    'path' => drupal_get_path('module', 'elearn_trainer_invoice') . '/templates',
+  );
+  $items['elearn_trainer_invoice_include'] = array(
+    'variables' => array('trainer_invoice' => array(), 'inline_css' => array()),
+    'template' => 'elearn_trainer_invoice_include',
+    'path' => drupal_get_path('module', 'elearn_trainer_invoice') . '/templates',
+  );
+  $items['trainer_invoice_issue'] = array(
+    'render element' => 'form',
+    'template' => 'form--trainer_invoice_issue',
+    'path' => drupal_get_path('module', 'elearn_trainer_invoice') . '/templates',
+  );
+  return $items;
+}
+
+//trainers can see only their own invoices/fees
+function elearn_trainer_invoice_my_invoices_access($uid) {
+  global $user;
+  if ($user->uid == $uid && in_array("trainer", $user->roles)) {
+    return TRUE;
+  }
+  else {
+    return FALSE;
+  }
+}
+
+//trainers can see only their own invoices
+function elearn_trainer_invoice_pdf_access($trainer_invoice_id) {
+  global $user;
+
+  $trainer_uid = db_query("SELECT trainer_uid FROM {trainer_invoice} WHERE invid = :invid", array(":invid" => $trainer_invoice_id))->fetchField();
+  if ($user->uid == $trainer_uid && in_array("trainer", $user->roles)) {
+    return TRUE;
+  }
+  else {
+    return FALSE;
+  }
+}
+
+function trainer_invoice_issue_invoice($form, &$form_state, $uid, $invid = null) {
+  global $user;
+  $form['invid'] = array(
+    '#type' => 'hidden',
+    '#value' => $invid,
+  );
+  $form['invoice_number'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Invoice number'),
+    '#description' => 'Invoice number',
+    '#required' => true,
+    '#default_value' => ''
+  );
+  $form['date_of_issue'] = array(
+    '#title' => t('Date of issue'),
+    '#type' => 'date_popup',
+    '#required' => true,
+    '#datepicker_options' => array('minDate' => 0),
+    '#date_format' => "d.m.Y",
+  );
+  $form['actions'] = array('#type' => 'actions');
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('ISSUE INVOICE')
+  );
+  $form['actions']['cancel'] = array(
+    '#markup' => l(t('Cancel'), 'user/' . $user->uid . '/my-invoices'),
+  );
+
+  $form['#validate'][] = 'trainer_invoice_issue_validate';
+  $form['#submit'][] = 'trainer_invoice_issue_sumbit';
+
+  $form['#theme'] = array('trainer_invoice_issue');
+
+  return $form;
+}
+
+function trainer_invoice_issue_validate($form, &$form_state) {//var_dump($form_state['values']['date_of_issue']); exit;
+  $date_of_issue = DateTime::createFromFormat('Y-m-d', $form_state['values']['date_of_issue']);
+  $date_of_issue_timestamp = $date_of_issue->getTimestamp();
+  if ($date_of_issue_timestamp < time()) {
+    form_set_error('date_of_issue', t("Date of issue can not be before today"));
+  }
+}
+
+function trainer_invoice_issue_sumbit($form, &$form_state) {
+  global $user;
+  $date_of_issue = DateTime::createFromFormat('Y-m-d', $form_state['values']['date_of_issue']);
+  $date_of_issue_timestamp = $date_of_issue->getTimestamp();
+  db_update('trainer_invoice')
+      ->fields(array(
+        'invoice_number' => $form_state['values']['invoice_number'],
+        'date_of_issue' => $date_of_issue_timestamp,
+      ))
+      ->condition('invid', $form_state['values']['invid'], '=')
+      ->execute();
+  drupal_set_message(t("Invoice issued!"));
+  $form_state['redirect'] = '/user/' . $user->uid . '/my-invoices';
+
+  // var_dump($form_state['values']['date_of_issue']); exit;
+  // return true;
+}
+
+function elearn_trainer_invoice_my_invoices($uid) {
+  $output = ""; //"<h5 class=\"error\">" .t('Some text here')."</h5>";
+  $header = array(
+    array('data' => t('From Date'), 'field' => 'period_start', 'sort' => 'asc'),
+    array('data' => t('To Date'), 'field' => 'period_end'),
+    array('data' => t('Invoice issue')),
+    array('data' => t('Invoice view')),
+    array('data' => t('Date of payment')),
+  );
+
+
+  $query = db_select('trainer_invoice', 'tr_inv')->extend('TableSort')->extend('PagerDefault')->limit(10)->orderByHeader($header);
+  $query->fields('tr_inv', array('invid', 'date_of_issue', 'invoice_number', 'period_start', 'period_end'));
+  $query->condition('tr_inv.trainer_uid', $uid, '=');
+  $result = $query->execute();
+  $rows = array();
+
+  foreach ($result as $row) {
+    if ($row->invoice_number != null && $row->date_of_issue != null) {
+      $inv = $row->invoice_number . "/" . format_date($row->date_of_issue, 'short');
+      $pdf = l($row->invoice_number, drupal_get_path_alias('trainer-invoice-pdf/' . $row->invid));
+    }
+    else {
+      $inv = l(t("CREATE INVOICE"), drupal_get_path_alias('user/' . $uid . '/my-invoices/trainer-invoice-issue/' . $row->invid));
+      $pdf = ""; //l('invoice preview', drupal_get_path_alias('user/' . $uid . '/my-invoices/trainer-invoice-pdf-preview/' . $row->invid));
+    }
+    $rows[$row->invid] = array(
+      "data" => array(
+        format_date($row->period_start, 'short'),
+        format_date($row->period_end, 'short'),
+        $inv,
+        $pdf,
+        ''
+      ),
+      "class" => array("class" => "course-instance-" . $row->invid),
+    );
+  }
+  $output .= theme_table(array(
+    'header' => $header,
+    'rows' => $rows,
+    'attributes' => array(),
+    'caption' => "10 courses listed per page",
+    'options' => array(),
+    'colgroups' => array(),
+    'sticky' => false,
+    'empty' => "No courses sold yet"
+      )
+  );
+  $output .= theme(
+      'pager', array('tags' => array()));
+  return $output;
+}
+
+function elearn_trainer_invoice_my_course_fees($uid) {
+  $output = ""; //"<h5 class=\"error\">" .t('Some text here')."</h5>";
+  $header = array(
+    array('data' => t('Order number'), 'field' => 'order_id', 'sort' => 'asc'),
+    array('data' => t('Order date'), 'field' => 'created'),
+    array('data' => t('Course number'), 'field' => 'course_nid'),
+    array('data' => t('Course title')),
+    array('data' => t('Tuition fee')),
+    array('data' => t('Course fee')),
+    array('data' => t('Transaction cost')),
+    array('data' => t('Net course fee')),
+    array('data' => t('Invoice number')),
+  );
+//$header['operations'] = array('data' => t('Course status'));
+// $destination = drupal_get_destination();
+
+  $query = db_select('course_instance', 'c')->extend('TableSort')->extend('PagerDefault')->limit(10)->orderByHeader($header);
+  $query->fields('c', array('ciid', 'order_id', 'uid', 'trainer_uid', 'course_holder_id', 'course_nid', 'quiz_nid', 'numb_attendies', 'created', 'activated', 'ended'));
+  $query->condition('c.trainer_uid', $uid, '=');
+  $result = $query->execute();
+  $rows = array();
+
+  foreach ($result as $row) {
+
+//TODO find a way to get title without loading the node
+    $course = node_load($row->course_nid); //var_dump($course);
+    $course_title = $course ? $course->title : "";
+
+    $order = commerce_order_load($row->order_id);
+    if ($order === false)
+      continue; //if for example order was deleted...
+    $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+    //var_dump($order);
+    $currency_code = $order_wrapper->commerce_order_total->currency_code->value();
+    $total = $order_wrapper->commerce_order_total->amount->value();
+    $order_total_price = commerce_currency_format($total, $currency_code);
+    $course_fee = $total * 0.7;
+    $order_total_fee = commerce_currency_format($course_fee, $currency_code);
+
+    $transaction = db_query("select remote_id, payment_method from {commerce_payment_transaction} where order_id = :order_id", array(":order_id" => $row->order_id))->fetchObject();
+    if ($transaction->payment_method == "paypal_wps") {
+      $paypal_transaction = commerce_paypal_payment_transaction_load($transaction->remote_id);
+      $paypal_fee = 100 * reset($paypal_transaction->payload)['mc_fee'];
+      $paypal_fee_currency = reset($paypal_transaction->payload)['mc_currency'];
+
+      //$order_transaction_cost = $paypal_fee;
+      $order_transaction_cost = commerce_currency_format($paypal_fee, $paypal_fee_currency);
+      $trasaction_fee = $paypal_fee;
+      $trasaction_fee_currency = $paypal_fee_currency;
+    }
+    if ($transaction->payment_method == "payment_commerce_2") { // no payment for testing
+      $trasaction_fee = 0;
+      $trasaction_fee_currency = $currency_code;
+    }
+    $order_trasaction_fee = commerce_currency_format($trasaction_fee, $trasaction_fee_currency);
+    if ($currency_code == $trasaction_fee_currency) {
+      $net_fee = $course_fee - $trasaction_fee; //var_dump($course_fee);
+      $order_net_fee = commerce_currency_format($net_fee, $currency_code);
+    }
+    else {
+      $order_net_fee = "";
+    }
+
+    //TODO write the liid in the course_instance table in function elearn_commerce_payment_order_paid_in_full
+    foreach ($order_wrapper->commerce_line_items as $delta => $line_item_wrapper) {
+      if (in_array($line_item_wrapper->type->value(), commerce_product_line_item_types())) {
+        $line_item_id = $line_item_wrapper->value()->line_item_id;
+      }
+    }
+    $query = db_select('trainer_invoice', 'tr_inv');
+    $query->join('trainer_invoice_li', 'tr_inv_li', 'tr_inv.invid = tr_inv_li.invid');
+    $query->fields('tr_inv', array('invid', 'date_of_issue', 'invoice_number'));
+    $query->condition('tr_inv_li.liid', $line_item_id, '=');
+    $query->isNotNull('tr_inv.date_of_issue');
+    $query->isNotNull('tr_inv.invoice_number');
+    $result = $query->execute()->fetchObject();
+
+
+    $invoice = ($result) ? l($result->invoice_number, drupal_get_path_alias('trainer-invoice-pdf/' . $result->invid)) : "Not invoiced";
+
+    $rows[$row->order_id] = array(
+      "data" => array(
+        l($row->order_id, drupal_get_path_alias('user/' . $row->uid . '/orders/' . $row->order_id)),
+        format_date($row->created, 'short'),
+        $row->course_nid,
+        l($course_title, drupal_get_path_alias('node/' . $row->course_nid)),
+        $order_total_price,
+        $order_total_fee,
+        $order_trasaction_fee,
+        $order_net_fee,
+        $invoice
+      ),
+      "class" => array("class" => "course-instance-" . $row->order_id),
+    );
+  }
+
+  $output .= theme_table(array(
+    'header' => $header,
+    'rows' => $rows,
+    'attributes' => array(),
+    'caption' => "10 courses listed per page",
+    'options' => array(),
+    'colgroups' => array(),
+    'sticky' => false,
+    'empty' => "No courses sold yet"
+      )
+  );
+  $output .= theme(
+      'pager', array('tags' => array()));
+  return $output;
+}
+
+function elearn_trainer_invoice_pdf($invid) {
+  $html = elearn_trainer_invoice_html($invid);
+  $filename = preg_replace('/[^a-z0-9]/', '_', drupal_strtolower('invoice_' . $invid)) . '.pdf';
+
+  try {
+    commerce_billy_pdf_output($html, $filename);
+    // print $html;
+    drupal_exit();
+  }
+  catch (DOMPDF_Exception $e) {
+    drupal_set_message(t($e . 'Error generating PDF invoice for trainer. Please contact the website administrator.'), 'error');
+    watchdog('elearn_trainer_invoice', 'DOMPDF exception while generating pdf invoice: %message', array('%message' => $e->getMessage()), WATCHDOG_ERROR);
+    return '';
+  }
+}
+
+function elearn_trainer_invoice_html($invid, $include = false) {
+  global $user;
+  $trainer_invoice = db_query("select * from {trainer_invoice} where invid = :invid", array(":invid" => $invid))->fetchObject();
+  if ($trainer_invoice->trainer_uid != $user->uid)
+    return;
+  $trainer = profile2_load_by_user($trainer_invoice->trainer_uid);
+  $vars['trainer_invoice']['trainer_full_name'] = array(
+    '#markup' => $trainer['trainer']->field_full_name['und']['0']['value'],
+  );
+  $vars['trainer_invoice']['trainer_VAT'] = array(
+    '#markup' => $trainer['trainer']->field_vat['und']['0']['value'],
+  );
+  $vars['trainer_invoice']['trainer_bank_account_details'] = array(
+    '#markup' => $trainer['trainer']->field_bank_name['und']['0']['value'],
+  );
+  $vars['trainer_invoice']['trainer_BIC'] = array(
+    '#markup' => $trainer['trainer']->field_bic['und']['0']['value'],
+  );
+  $vars['trainer_invoice']['trainer_IBAN'] = array(
+    '#markup' => $trainer['trainer']->field_iban['und']['0']['iban_field'],
+  );
+
+  $handlers = array('address' => 'address'); //There are other formats, but this one will output the mailing address. 
+  $context = array('mode' => 'render');
+  $address_render_array = addressfield_generate($trainer['trainer']->field_trainer_billing_address['und']['0'], $handlers, $context);
+  $address = drupal_render($address_render_array);
+  $vars['trainer_invoice']['trainer_address'] = array(
+    '#markup' => $address,
+  );
+  $vars['trainer_invoice']['preview_mode'] = false;
+  if ($trainer_invoice->invoice_number) {
+    $vars['trainer_invoice']['invoice_number'] = $trainer_invoice->invoice_number;
+  }
+  else {
+    $vars['trainer_invoice']['invoice_number'] = "<span class=\"important\">NOT SPECIFIED YET!</span>";
+    $vars['trainer_invoice']['preview_mode'] = true;
+  }
+  if ($trainer_invoice->date_of_issue) {
+    $date_of_issue_formatted = format_date($trainer_invoice->date_of_issue, 'short');
+    $dueto_date_formatted = date('t.m.Y', $trainer_invoice->date_of_issue + 28 * 24 * 60 * 60); //the last day of the next month
+
+
+    $vars['trainer_invoice']['invoice_date_of_issue'] = $date_of_issue_formatted;
+    $vars['trainer_invoice']['tax_event_date'] = $date_of_issue_formatted;
+    $vars['trainer_invoice']['invoice_dueto_date'] = $dueto_date_formatted;
+  }
+  else {
+    $vars['trainer_invoice']['invoice_date_of_issue'] = "<span class=\"important\">NOT SPECIFIED YET!</span>";
+    $vars['trainer_invoice']['tax_event_date'] = "";
+    $vars['trainer_invoice']['invoice_dueto_date'] = "";
+    $vars['trainer_invoice']['preview_mode'] = true;
+  }
+
+  $header = array(
+    array('data' => t('Number of item')),
+    array('data' => t('Item Name')),
+    array('data' => t('Created on')),
+    array('data' => t('Order number')),
+    array('data' => t('Course number')),
+    array('data' => t('Course title')),
+    array('data' => t('Currency')),
+    array('data' => t('Item Price')),
+  );
+
+  $line_items_for_invoice = db_query("select * from {trainer_invoice_li} where invid = :invid", array(":invid" => $invid));
+  $i = 1;
+  $invoice_total = 0;
+
+  foreach ($line_items_for_invoice as $liid) {
+    $line_item = commerce_line_item_load($liid->liid);
+    $product = commerce_product_load($line_item->commerce_product['und'][0]['product_id']);
+    $course = node_load($product->field_course_reference['und'][0]['target_id']);
+
+    $item_price = $line_item->commerce_total['und'][0]['amount'] / 100 * 0.7;
+    $invoice_total += $item_price;
+
+    $transaction_id = db_query("select remote_id from {commerce_payment_transaction} where order_id = :order_id", array(":order_id" => $line_item->order_id))->fetchObject();
+    $paypal_transaction = commerce_paypal_payment_transaction_load($transaction_id->remote_id);
+    $paypal_fee = reset($paypal_transaction->payload)['mc_fee'];
+    $paypal_fee_currency = reset($paypal_transaction->payload)['mc_currency'];
+
+    $invoice_total -= $paypal_fee;
+
+    $rows[$liid->liid . 'course-fee'] = array(
+      "data" => array(
+        $i++,
+        "Course fee",
+        format_date($line_item->created, 'short'),
+        $line_item->order_id,
+        $course->nid,
+        $course->title,
+        $line_item->commerce_total['und'][0]['currency_code'],
+        number_format($item_price, 2),
+      ),
+      "class" => array("class" => "li-" . $liid->liid),
+    );
+    $rows[$liid->liid . 'transaction-costs'] = array(
+      "data" => array(
+        $i++,
+        "Transaction costs",
+        format_date($line_item->created, 'short'),
+        $line_item->order_id,
+        $course->nid,
+        $course->title,
+        $paypal_fee_currency,
+        "-" . number_format($paypal_fee, 2),
+      ),
+      "class" => array("class" => "li-" . $liid->liid),
+    );
+  }
+
+  $li = theme_table(array(
+    'header' => $header,
+    'rows' => $rows,
+    'attributes' => array(),
+    'caption' => "",
+    'options' => array(),
+    'colgroups' => array(),
+    'sticky' => false,
+    'empty' => ""
+      )
+  );
+  $vars['trainer_invoice']['li'] = $li;
+  $vars['trainer_invoice']['invoice_total'] = number_format($invoice_total, 2);
+
+  if ($include == false) {
+    return theme('elearn_trainer_invoice_page', $vars);
+  }
+  if ($include == true) {
+    return theme('elearn_trainer_invoice_include', $vars);
+  }
+}
+
+function elearn_trainer_invoice_cron() {
+  $today = time();
+//  echo date("i", $today);
+//  echo date("t", $today); //last day of the month
+//  echo date("d", $today); // day of the month
+//  echo date("G", $today); // hour
+//  
+//  
+//!!!!!!!!!!!!!! if the cron is run every 5 min
+//if(date("d", $today) == date("t", $today) && date("G", $today) == '23' && date("i", $today) >=50 && date("i", $today) < 59){ //every last day of the month beteween 23:50 and 23:59
+  if (date("G", $today) == '23' && date("i", $today) >= 50 && date("i", $today) < 59) {//every day at 23 o'clock beteween 23:50 and 23:59
+    $date_format = "d-m-Y  H:i:s";
+
+    //$first_day = date('01-m-Y 00:00:01');  // first day of the current month
+    $first_day = date('d-m-Y 00:00:01');  //00:00:00 today
+    $first_day_date = DateTime::createFromFormat($date_format, $first_day);
+    $first_day_timestamp = $first_day_date->getTimestamp();
+    echo "<br> ------------$first_day ---- $first_day_timestamp -----------" . date($date_format, $first_day_timestamp);
+
+    //$last_day = date("t-m-Y 23:59:59");// last day of the current month
+    $last_day = date("d-m-Y 23:59:59"); // 23:59:59 today
+    $last_day_date = DateTime::createFromFormat($date_format, $last_day);
+    $last_day_timestamp = $last_day_date->getTimestamp();
+    echo "<br>  -----------$last_day ---- $last_day_timestamp ------------" . date($date_format, $last_day_timestamp);
+
+    //SELECT orders that are changed in the period AND are in status "invoiced"
+    $query = db_select('commerce_order', 'co');
+    $query->fields('co', array('order_id'));
+    $query->condition('co.status', "invoiced", '=');
+    $query->condition('co.invoiced_for_trainer', "0", '=');
+    $query->condition('co.changed', $last_day_timestamp, '<=');
+    $query->condition('co.changed', $first_day_timestamp, '>=');
+    $orders = $query->execute();
+
+    //create the array with li for each trainer
+    foreach ($orders as $order) {
+      $current_order = commerce_order_load($order->order_id); //var_dump(entity_metadata_wrapper('commerce_order', $current_order));
+      foreach (entity_metadata_wrapper('commerce_order', $current_order)->commerce_line_items as $delta => $line_item_wrapper) {
+        if (in_array($line_item_wrapper->type->value(), commerce_product_line_item_types())) {
+          $product_wrapper = entity_metadata_wrapper('commerce_product', $line_item_wrapper->commerce_product->raw());
+          $course = $product_wrapper->field_course_reference->value();
+          $invoices[$course->uid]['line_items'][] = array("liid" => $line_item_wrapper->raw(), "order_id" => $order->order_id);
+          //echo "<br>$order->order_id---". $line_item_wrapper->raw() ."---" .$line_item_wrapper->commerce_total->amount->value() . "----" .$line_item_wrapper->commerce_total->currency_code->value();
+        }
+      }
+    }
+
+    foreach ($invoices as $trainer_uid => $invoice) {
+      //total price for trainer's invoice
+      //$line_items = commerce_line_item_load_multiple($invoice['line_items_ids']);
+      foreach ($invoice['line_items'] as $line_item) {
+        $line_items_ids[] = $line_item['liid'];
+      }
+      $inv_total = commerce_line_items_total($line_items_ids, array("type" => "product"));
+      $invoices[$trainer_uid]['invoice_total'] = $inv_total;
+      //add invoice
+      $invid = db_insert('trainer_invoice')
+          ->fields(array(
+            'trainer_uid' => $trainer_uid,
+            'total_original' => $inv_total['amount'],
+            'total_for_trainer' => $inv_total['amount'] * 0.7,
+            'currency' => $inv_total['currency_code'],
+            'period_start' => $first_day_timestamp,
+            'period_end' => $last_day_timestamp,
+            'created' => REQUEST_TIME,
+          ))
+          ->execute();
+
+      foreach ($invoice['line_items'] as $line_item) {
+        //add line items for invoice
+        db_insert('trainer_invoice_li')
+            ->fields(array(
+              'invid' => $invid,
+              'liid' => $line_item['liid'],
+            ))
+            ->execute();
+
+        //mark oder as invoiced so it's line items are not included in other invoices for trainer
+        db_update('commerce_order')
+            ->fields(array(
+              'invoiced_for_trainer' => 1,
+            ))
+            ->condition('order_id', $line_item['order_id'], '=')
+            ->execute();
+
+        // db_query("UPDATE {commerce_order} SET invoiced_for_trainer = %d WHERE order_id = %d", 1, $line_item['order_id']);
+      }
+    }
+    echo "invoice task run";
+    //var_dump($invoices);
+  }
+}
