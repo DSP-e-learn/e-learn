@@ -206,7 +206,7 @@ function elearn_trainer_invoice_my_invoices($uid) {
     'options' => array(),
     'colgroups' => array(),
     'sticky' => false,
-    'empty' => "No courses sold yet"
+    'empty' => "No invoices yet"
       )
   );
   $output .= theme(
@@ -351,9 +351,15 @@ function elearn_trainer_invoice_html($invid, $include = false) {
   $vars['trainer_invoice']['trainer_full_name'] = array(
     '#markup' => $trainer['trainer']->field_full_name['und']['0']['value'],
   );
-  $vars['trainer_invoice']['trainer_VAT'] = array(
-    '#markup' => $trainer['trainer']->field_vat['und']['0']['value'],
-  );
+  if (isset($trainer['trainer']->field_vat['und']['0']['value'])) {
+    $vars['trainer_invoice']['trainer_VAT'] = array(
+      '#markup' => $trainer['trainer']->field_vat['und']['0']['value'],
+    );
+  }else {
+    $vars['trainer_invoice']['trainer_VAT'] = array(
+      '#markup' => "",
+    );
+  }
   $vars['trainer_invoice']['trainer_bank_account_details'] = array(
     '#markup' => $trainer['trainer']->field_bank_name['und']['0']['value'],
   );
@@ -488,17 +494,17 @@ function elearn_trainer_invoice_cron() {
   if (date("G", $today) == '23' && date("i", $today) >= 50 && date("i", $today) < 59) {//every day at 23 o'clock beteween 23:50 and 23:59
     $date_format = "d-m-Y  H:i:s";
 
-    //$first_day = date('01-m-Y 00:00:01');  // first day of the current month
-    $first_day = date('d-m-Y 00:00:01');  //00:00:00 today
+    $first_day = date('01-m-Y 00:00:01');  // first day of the current month
+    //$first_day = date('d-m-Y 00:00:01');  //00:00:00 today
     $first_day_date = DateTime::createFromFormat($date_format, $first_day);
     $first_day_timestamp = $first_day_date->getTimestamp();
-    echo "<br> ------------$first_day ---- $first_day_timestamp -----------" . date($date_format, $first_day_timestamp);
+    //echo "<br> ------------$first_day ---- $first_day_timestamp -----------" . date($date_format, $first_day_timestamp);
 
-    //$last_day = date("t-m-Y 23:59:59");// last day of the current month
-    $last_day = date("d-m-Y 23:59:59"); // 23:59:59 today
+    $last_day = date("t-m-Y 23:59:59");// last day of the current month
+    //$last_day = date("d-m-Y 23:59:59"); // 23:59:59 today
     $last_day_date = DateTime::createFromFormat($date_format, $last_day);
     $last_day_timestamp = $last_day_date->getTimestamp();
-    echo "<br>  -----------$last_day ---- $last_day_timestamp ------------" . date($date_format, $last_day_timestamp);
+    //echo "<br>  -----------$last_day ---- $last_day_timestamp ------------" . date($date_format, $last_day_timestamp);
 
     //SELECT orders that are changed in the period AND are in status "invoiced"
     $query = db_select('commerce_order', 'co');
@@ -517,12 +523,14 @@ function elearn_trainer_invoice_cron() {
           $product_wrapper = entity_metadata_wrapper('commerce_product', $line_item_wrapper->commerce_product->raw());
           $course = $product_wrapper->field_course_reference->value();
           $invoices[$course->uid]['line_items'][] = array("liid" => $line_item_wrapper->raw(), "order_id" => $order->order_id);
-          //echo "<br>$order->order_id---". $line_item_wrapper->raw() ."---" .$line_item_wrapper->commerce_total->amount->value() . "----" .$line_item_wrapper->commerce_total->currency_code->value();
-        }
+          //echo "<br>trainer_uid=$course->uid---------order_id=$order->order_id---line_item_id=". 
+          //    $line_item_wrapper->raw() ."--- total_amount=" .$line_item_wrapper->commerce_total->amount->value() . 
+          //    "---- currency_code=" .$line_item_wrapper->commerce_total->currency_code->value();        }
       }
     }
 
     foreach ($invoices as $trainer_uid => $invoice) {
+      $line_items_ids = array();
       //total price for trainer's invoice
       //$line_items = commerce_line_item_load_multiple($invoice['line_items_ids']);
       foreach ($invoice['line_items'] as $line_item) {
@@ -563,7 +571,7 @@ function elearn_trainer_invoice_cron() {
         // db_query("UPDATE {commerce_order} SET invoiced_for_trainer = %d WHERE order_id = %d", 1, $line_item['order_id']);
       }
     }
-    echo "invoice task run";
+    echo "<br>invoice task run";
     //var_dump($invoices);
   }
 }
