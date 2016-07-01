@@ -678,6 +678,16 @@ function elearn_menu() {
     'access arguments' => array(1),
     'type' => MENU_NORMAL_ITEM,
   );
+   $items['user/%/my-trainees'] = array(
+    'title' => 'My trainees',
+    'page callback' => 'elearn_my_trainees',
+    'page arguments' => array(1),
+    'access callback' => 'elearn_my_bought_courses_access',
+    'access arguments' => array(1),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 110
+
+  );
 //for TRAINER
   $items['user/%/courses-i-sold'] = array(
     'title' => 'My sold courses',
@@ -1025,6 +1035,92 @@ function elearn_my_sold_courses($uid) {
     'colgroups' => array(),
     'sticky' => false,
     'empty' => "No courses sold yet"
+      )
+  );
+  $output .= theme(
+      'pager', array('tags' => array()));
+  return $output;
+}
+
+
+function elearn_my_trainees($uid) {
+  global $user;
+  $output = "";
+  $header = array(
+    array('data' => t('Order number'), 'field' => 'order_id', 'sort' => 'asc'),
+    array('data' => t('Order date'), 'field' => 'created'),
+    array('data' => t('Course number'), 'field' => 'course_id'),
+    array('data' => t('Course title'), 'field' => 'created'),
+    array('data' => t('User'), 'field' => 'uid'),
+    array('data' => t('User email'), 'field' => 'uid'),
+    array('data' => t('First accessed'), 'field' => 'first_accessed'),
+    array('data' => t('Last accessed'), 'field' => 'last_accessed'),
+    array('data' => t('Best result(%)')),
+    array('data' => t('Is evaluated')),
+    array('data' => t('Operations')),
+  );
+
+  $query = db_select('course_instance_enrolled', 'cie')->distinct()->extend('TableSort')->extend('PagerDefault')->limit(20)->orderByHeader($header);
+  $query->join('course_instance', 'ci', 'ci.ciid = cie.ciid');
+  $query->join('node', 'n', 'n.nid = ci.course_nid');
+  $query->fields('cie', array('ciid', 'uid', 'course_holder_id', 'first_accessed', 'last_accessed', 'result_id'));
+  $query->fields('ci', array('order_id', 'course_nid', 'quiz_nid', 'created'));
+  $query->fields('n', array('title'));
+  $query->condition('ci.uid', $uid, '=');  //var_dump($query->__toString()); exit;
+  $result = $query->execute();
+  $rows = array();
+
+  foreach ($result as $row) {
+    $user_enrolled = user_load($row->uid);
+    $user_name = $user_enrolled->name;
+    $user_email = $user_enrolled->mail;
+
+    $first_accessed = $row->first_accessed ? format_date($row->first_accessed, 'short') : t("not accessed");
+    $last_accessed = $row->last_accessed ? format_date($row->last_accessed, 'short') : t("");
+    $quiz_result = db_query("SELECT * FROM {quiz_node_results} WHERE nid = :nid AND uid = :uid ORDER BY score DESC LIMIT 1", array(":nid" => $row->quiz_nid, ':uid' => $row->uid))->fetchObject();
+
+    $score = (isset($quiz_result->score)) ? $quiz_result->score : '';
+    $is_evaluated = (isset($quiz_result->is_evaluated)) ? t("yes") : t('no');
+    $rows[$row->uid] = array(
+      "data" => array(
+        $row->order_id,
+        format_date($row->created, 'short'),
+        $row->course_nid,
+        $row->title,
+        $user_name,
+        $user_email,
+        $first_accessed,
+        $last_accessed,
+        $score,
+        $is_evaluated
+      ),
+      "class" => array("class" => "course-enrolled-" . $row->uid),
+    );
+
+    $operations = array();
+    if ($score) {
+      $operations['view_results'] = array(
+        'title' => t('View best result'),
+        'href' => 'node/' . $row->quiz_nid . '/quiz-results/' . $quiz_result->result_id . "/view",
+      );
+    }
+    $rows[$row->uid]["data"]['operations'] = array(
+      'data' => array(
+        '#theme' => 'links__node_operations',
+        '#links' => $operations,
+        '#attributes' => array('class' => array('links', 'inline')),
+      ),
+    );
+  }
+  $output .= theme_table(array(
+    'header' => $header,
+    'rows' => $rows,
+    'attributes' => array(),
+    'caption' => "20 trainees listed per page",
+    'options' => array(),
+    'colgroups' => array(),
+    'sticky' => false,
+    'empty' => "No trainees added yet"
       )
   );
   $output .= theme(
@@ -1534,9 +1630,13 @@ function elearn_url_outbound_alter(&$path, &$options, &$original_path) {
   if (in_array('user', $user->roles)) {
     $newpath = 'user/' . $user->uid . '/courses';
   }
+  if (in_array('site_admin', $user->roles)) {
+    $newpath = 'admin/commerce/reports';
+  }
   if (($path == '<front>' || empty($path)) && !empty($newpath)) {
     $original_path = $path = $newpath;
   }
+  
 }
 
 
