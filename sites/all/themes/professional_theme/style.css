@@ -1636,3 +1636,4 @@ form.commerce-add-to-cart .form-item-quantity label{display: inline; font-weight
 .price-note{font-size: 0.8em}
 #footer a{color:white}
 .form-item-date-of-issue-date label {display: none;}
+table tr.unpublished td {background:#caa;}

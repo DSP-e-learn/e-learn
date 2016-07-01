@@ -79,6 +79,7 @@ function elearn_form_alter(&$form, &$form_state, $form_id) {
     );
   }
   if ($form_id == 'course_node_form') {
+    $form['language']['#type'] = "hidden"; //multilingual will be done for nex version
     $node = $form_state['node'];
     if (isset($node->nid)) {
       //prevent deleting a course
@@ -89,7 +90,7 @@ function elearn_form_alter(&$form, &$form_state, $form_id) {
     //allow trainers to publish/unpublish their courses but without promote and sticky
     if (in_array('trainer', $user->roles)) {
       if ($form['options']['#access'] == FALSE) {
-        $form['options']['#access'] = TRUE;
+        $form['options']['#access'] = FALSE; //FALSE should be TRUE in order to allow editing of this field
       }
       unset($form['options']['promote']);
       unset($form['options']['sticky']);
@@ -116,13 +117,62 @@ function elearn_module_implements_alter(&$implementations, $hook) {
   }
 }
 
+//trainer can publish/unpublish only his own courses
+function elearn_course_publish_unpublish_access($course_id) {
+  global $user;
+
+  $course = node_load($course_id);
+  if ($user->uid == $course->uid) {
+    return true;
+  }
+  else {
+    return false;
+  }
+}
+
+function elearn_course_publish_unpublish($course_id, $status) {
+  $course = node_load($course_id);
+  if ($status == "publish") {
+    $s = 1;
+    $message_status = "status";
+    $message_text = t("Course %s is now published and can be bought!", array('%s' => $course->title));
+  }
+  else {
+    $s = 0;
+    $message_status = "warning";
+    $message_text = t("Course %s is now NOT published and can NOT be bought!", array('%s' => $course->title));
+  }
+
+  $course = node_load($course_id);
+  $course->status = $s;
+  node_save($course);
+  //$course_holder_id = elearn_get_node_referensing_node($course_id, 'field_reference_to_course', 'node');
+  //$product_id = elearn_get_node_referensing_node($course_holder_id, 'field_course_holder_reference', 'commerce_product');
+  if ($product_id = elearn_get_node_referensing_node($course->nid, 'field_course_reference', 'commerce_product')) {
+
+    $product_display_id = elearn_get_display_node_by_product_id($product_id, 'field_product'); //echo"ddddd";var_dump($product_id); exit;
+    $product_display = node_load($product_display_id);
+    $product_display->status = $s;
+    node_save($product_display);
+  }else{//there is no product for this cource
+    $message_status = "error";
+    $message_text = t("Error! Please contact site admin.", array('%s' => $course->title));
+  }
+  drupal_set_message($message_text, $message_status);
+
+  drupal_goto("user/" . $course->uid . "/courses-i-created/" );
+}
+
+
+
 function elearn_node_update($node) {
   global $user;
   //handle publish/unpublish of Course to publish/unpublish corresponding Product Display
   //as rules doesn't do publishing because of permission issue
   //all other fields are updated from rule "Edit course Holder, Product and PD on Course change"
-  if ($node->type == "course") {
-    //find course HOLDER
+  if (false && $node->type == "course") { //publish/unpublish will be done by elearn_course_publish_unpublish function
+   
+//find course HOLDER
     $query = new EntityFieldQuery();
     $query->entityCondition('entity_type', 'node');
     $query->fieldCondition('field_reference_to_course', 'target_id', $node->nid);
@@ -145,6 +195,15 @@ function elearn_node_update($node) {
         node_save($pd);
       }
     }
+ 
+/* 
+    $course_holder_id = elearn_get_node_referensing_node($node->nid, 'field_reference_to_course', 'node');
+    $product_id = elearn_get_node_referensing_node($course_holder_id, 'field_course_holder_reference', 'commerce_product');
+    $product_diplay_id = elearn_get_display_node_by_product_id($product_id, 'field_product');
+    $pd = node_load($product_diplay_id);
+    $pd->status = $node->status;
+    node_save($pd); 
+*/
   }
 
   //Create Course HOLDER, PRODUCT and PD on creating a quiz(course)
@@ -629,6 +688,15 @@ function elearn_menu() {
     'type' => MENU_LOCAL_TASK,
     'weight' => 100
   );
+  $items['user/%/courses-i-created'] = array(
+    'title' => 'Courses created by me ',
+    'page callback' => 'elearn_courses_i_created',
+    'page arguments' => array(1),
+    'access callback' => 'elearn_my_sold_courses_access',
+    'access arguments' => array(1),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 100
+  );
 
   $items['profile/%user/view'] = array(
     'title' => 'User account',
@@ -638,6 +706,17 @@ function elearn_menu() {
     'file' => '../../../../modules/user/user.module',
     'type' => MENU_NORMAL_ITEM,
   );
+  
+  $items['course/%/%'] = array(
+    'title' => 'Publish/unpublish a course',
+    'page callback' => 'elearn_course_publish_unpublish',
+    'page arguments' => array(1, 2),
+    'access callback' => 'elearn_course_publish_unpublish_access',
+    'access arguments' => array(1),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+
   return $items;
 }
 
@@ -671,6 +750,96 @@ function elearn_my_sold_courses_access($uid) {//var_dump($uid);
   else {
     return FALSE;
   }
+}
+
+//for COMPANY
+function elearn_courses_i_created($uid){
+  $output = "<h5 class=\"error\">" . t('A list of courses that you created. Courses that are not published can not be sold!') . "</h5>";
+  $header = array(
+    array('data' => t('Course number'), 'field' => 'nid', 'sort' => 'desc'),
+    array('data' => t('Course date'), 'field' => 'created'),
+    array('data' => t('Subject')),
+    array('data' => t('Course title'), 'field' => 'title'),
+    array('data' => t('Course test title')),
+    array('data' => t('# questions')),
+    array('data' => t('Fixed price')),
+    array('data' => t('Additional price per trainee')),
+  );
+  $header['operations'] = array('data' => t('Publish/Unpublish'));
+  $destination = drupal_get_destination();
+  $query = db_select('node', 'n')->extend('TableSort')->extend('PagerDefault')->limit(10)->orderByHeader($header);
+    $query->fields('n', array('nid', 'title', 'created', 'status'));
+    $query->condition('n.type', "course", '=');
+    $query->condition('n.uid', $uid, '=');
+    $result = $query->execute();
+
+    foreach ($result as $row) {
+      $operations = array();
+      $course = node_load($row->nid); //var_dump($course->field_additional_price['und'][0]); exit;
+      $course_subject = taxonomy_term_load($course->field_category['und'][0]['tid']); //var_dump($course_subject);exit;
+      $quiz = node_load($course->field_quiz['und'][0]['target_id']);
+      $number_of_questions = quiz_get_number_of_questions($quiz->vid, $quiz->nid);
+      //TODO find a way to get title without loading the node
+      $rows[$row->nid] = array(
+        "data" => array(
+          $row->nid,
+          format_date($row->created, 'short'),
+          l($course_subject->name, "taxonomy/term/" . $course_subject->tid),
+          l($row->title, "node/" . $row->nid),
+          l($quiz->title, "node/" . $quiz->nid),
+          $number_of_questions,
+          commerce_currency_format($course->field_base_price_of_the_course['und'][0]['amount'], $course->field_base_price_of_the_course['und'][0]['currency_code']),
+          $course->field_additional_price['und'][0]['value'],
+        ),
+      );
+      if ($course->status == 0 && $number_of_questions >= 3) {
+        $operations['publish'] = array(
+          'title' => t('Publish'),
+          'href' => 'course/' . $row->nid . '/publish/',
+          'query' => $destination,
+        );
+        $status_class = " unpublished";
+      }
+      if ($course->status == 0 && $number_of_questions < 3) {
+        $operations['add_quistions'] = array(
+          'title' => t('Add questions'),
+          'href' => 'node/' . $quiz->nid . '/quiz/questions/',
+          'query' => $destination,
+        );
+        $status_class = " unpublished";
+      }
+      if ($course->status == 1) {
+        $operations['unpublish'] = array(
+          'title' => t('Unpublish'),
+          'href' => 'course/' . $row->nid . '/unpublish/',
+          'query' => $destination,
+        );
+        $status_class = " published";
+      }
+      // Render an unordered list of operations links.
+      $rows[$row->nid]["data"]['operations'] = array(
+        'data' => array(
+          '#theme' => 'links__node_operations',
+          '#links' => $operations,
+          '#attributes' => array('class' => array('links', 'inline')),
+        ),
+      );
+      $rows[$row->nid]['class'] = array("class" => "course-instance-" . $row->nid . $status_class);
+  }
+  $output .= theme_table(array(
+    'header' => $header,
+    'rows' => $rows,
+    'attributes' => array(),
+    'caption' => "10 courses listed per page",
+    'options' => array(),
+    'colgroups' => array(),
+    'sticky' => false,
+    'empty' => "No courses created yet"
+      )
+  );
+  $output .= theme(
+      'pager', array('tags' => array()));
+  return $output;
 }
 
 //for Company
@@ -1360,7 +1529,7 @@ function elearn_url_outbound_alter(&$path, &$options, &$original_path) {
     $newpath = 'user/' . $user->uid . '/orders';
   }
   if (in_array('trainer', $user->roles)) {
-    $newpath = 'user/' . $user->uid . '/own-courses';
+    $newpath = 'user/' . $user->uid . '/courses-i-created';
   }
   if (in_array('user', $user->roles)) {
     $newpath = 'user/' . $user->uid . '/courses';
@@ -1370,6 +1539,8 @@ function elearn_url_outbound_alter(&$path, &$options, &$original_path) {
   }
 }
 
+
+//TODO what to do when trainer removes questions from quiz?
 /**
  * Implements hook_quiz_question_relationship_insert().
  *
@@ -1377,9 +1548,12 @@ function elearn_url_outbound_alter(&$path, &$options, &$original_path) {
 function elearn_quiz_question_relationship_insert($quiz_question_relationship) {
   global $user;
   $number_of_questions = quiz_get_number_of_questions($quiz_question_relationship->parent_vid, $quiz_question_relationship->parent_nid);
-
   if ($number_of_questions >= 3) {
-    drupal_set_message(t('This Test now has enought questions. You can <a href="!publish_url">Publish the Course</a> or continue adding questions. You can later activate the Course from <a href="/user/!uid/own-courses">Courses by me</a>', array('!publish_url' => '/asdf', '!uid' => $user->uid)), 'status');
+    $course_id = elearn_get_node_referensing_node($quiz_question_relationship->parent_nid, 'field_quiz', 'node');
+    drupal_set_message(t('This Test now has enought questions. You can <a href="/course/!course_id/publish">Publish the Course</a> or continue adding questions. You can later publish the Course from <a href="/user/!uid/own-courses">Courses by me</a>', array('!course_id' => $course_id, '!uid' => $user->uid)), 'status');
+  }
+  else {
+    drupal_set_message(t('This Test now has !number_of_questions questions. Only courses with 3 and more questions can be Published', array('!number_of_questions' => $number_of_questions)), 'status');
   }
 }
 
