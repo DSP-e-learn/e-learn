@@ -725,10 +725,32 @@ function elearn_menu() {
     'access arguments' => array(1),
     'type' => MENU_NORMAL_ITEM,
   );
-
+//for USERS
+  $items['user/%/my-courses'] = array(
+    'title' => 'My courses',
+    'page callback' => 'elearn_my_courses_for_users',
+    'page arguments' => array(1),
+    'access callback' => 'elearn_my_courses_for_users_access',
+    'access arguments' => array(1),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 100
+  );
 
   return $items;
 }
+
+
+//every USER can see only his own courses
+function elearn_my_courses_for_users_access($uid) {
+  global $user;
+  if ($user->uid == $uid && in_array("user", $user->roles)) {
+    return TRUE;
+  }
+  else {
+    return FALSE;
+  }
+}
+
 
 //only user that bought course has the right to activate it
 function elearn_course_activate_access($ciid) {
@@ -1042,21 +1064,20 @@ function elearn_my_sold_courses($uid) {
   return $output;
 }
 
-
+//For COMPANY
 function elearn_my_trainees($uid) {
-  global $user;
   $output = "";
   $header = array(
     array('data' => t('Order number'), 'field' => 'order_id', 'sort' => 'asc'),
     array('data' => t('Order date'), 'field' => 'created'),
-    array('data' => t('Course number'), 'field' => 'course_id'),
+    array('data' => t('Course number'), 'field' => 'course_nid'),
     array('data' => t('Course title'), 'field' => 'created'),
     array('data' => t('User'), 'field' => 'uid'),
     array('data' => t('User email'), 'field' => 'uid'),
     array('data' => t('First accessed'), 'field' => 'first_accessed'),
     array('data' => t('Last accessed'), 'field' => 'last_accessed'),
     array('data' => t('Best result(%)')),
-    array('data' => t('Is evaluated')),
+   // array('data' => t('Is evaluated')),
     array('data' => t('Operations')),
   );
 
@@ -1066,7 +1087,7 @@ function elearn_my_trainees($uid) {
   $query->fields('cie', array('ciid', 'uid', 'course_holder_id', 'first_accessed', 'last_accessed', 'result_id'));
   $query->fields('ci', array('order_id', 'course_nid', 'quiz_nid', 'created'));
   $query->fields('n', array('title'));
-  $query->condition('ci.uid', $uid, '=');  //var_dump($query->__toString()); exit;
+  $query->condition('ci.uid', $uid, '=');  
   $result = $query->execute();
   $rows = array();
 
@@ -1079,8 +1100,8 @@ function elearn_my_trainees($uid) {
     $last_accessed = $row->last_accessed ? format_date($row->last_accessed, 'short') : t("");
     $quiz_result = db_query("SELECT * FROM {quiz_node_results} WHERE nid = :nid AND uid = :uid ORDER BY score DESC LIMIT 1", array(":nid" => $row->quiz_nid, ':uid' => $row->uid))->fetchObject();
 
-    $score = (isset($quiz_result->score)) ? $quiz_result->score : '';
-    $is_evaluated = (isset($quiz_result->is_evaluated)) ? t("yes") : t('no');
+    $score = (isset($quiz_result->score)) ? $quiz_result->score : t('not evaluated');
+    //$is_evaluated = (isset($quiz_result->is_evaluated)) ? t("yes") : t('no');
     $rows[$row->uid] = array(
       "data" => array(
         $row->order_id,
@@ -1092,13 +1113,13 @@ function elearn_my_trainees($uid) {
         $first_accessed,
         $last_accessed,
         $score,
-        $is_evaluated
+        //$is_evaluated
       ),
       "class" => array("class" => "course-enrolled-" . $row->uid),
     );
 
     $operations = array();
-    if ($score) {
+    if (isset($quiz_result->score)) {
       $operations['view_results'] = array(
         'title' => t('View best result'),
         'href' => 'node/' . $row->quiz_nid . '/quiz-results/' . $quiz_result->result_id . "/view",
@@ -1127,6 +1148,78 @@ function elearn_my_trainees($uid) {
       'pager', array('tags' => array()));
   return $output;
 }
+
+
+//for USER
+function elearn_my_courses_for_users($uid){
+  global $user;
+  $output = "";
+  $header = array(
+    array('data' => t('Start date'), 'field' => 'activated', 'sort' => 'asc'),
+    array('data' => t('End date'), 'field' => 'ended'),
+    array('data' => t('Course number'), 'field' => 'course_nid'),
+    array('data' => t('Course title')),
+    array('data' => t('Course test title')),
+    array('data' => t('Test results')),
+    array('data' => t('Certificate')),
+    array('data' => t('Status')),
+  );
+
+  $query = db_select('course_instance', 'ci')->distinct()->extend('TableSort')->extend('PagerDefault')->limit(20)->orderByHeader($header);
+  $query->join('course_instance_enrolled', 'cie', 'ci.ciid = cie.ciid');
+  $query->join('node', 'n', 'n.nid = ci.course_nid');
+  $query->fields('cie', array('ciid', 'uid', 'course_holder_id', 'first_accessed', 'last_accessed', 'result_id'));
+  $query->fields('ci', array('order_id', 'course_nid', 'quiz_nid', 'activated', 'ended'));
+  $query->fields('n', array('title'));
+  $query->condition('cie.uid', $uid, '=');  //var_dump($query->__toString()); exit;
+  $result = $query->execute();
+  $rows = array();
+
+  foreach ($result as $row) {
+
+    $quiz_result = db_query("SELECT * FROM {quiz_node_results} WHERE nid = :nid AND uid = :uid ORDER BY score DESC LIMIT 1", array(":nid" => $row->quiz_nid, ':uid' => $row->uid))->fetchObject();
+
+    $score = (isset($quiz_result->score)) ? $quiz_result->score : '';
+    $is_evaluated = (isset($quiz_result->is_evaluated)) ? t("yes") : t('no');
+    $link_to_best_result = ($score) ? l(t('View best result'), 'node/' . $row->quiz_nid . '/quiz-results/' . $quiz_result->result_id . "/view") : "";
+    
+    $quiz = node_load($row->quiz_nid);
+    $certificate = (quiz_certificate_access_certificate($quiz, $user)) ? l("certificate pdf", "node/" . $row->quiz_nid . "/certificate") : "";
+
+    $status = ($row->ended > time()) ? "active" : "expired";
+    $course_title = ($status == "active") ? l($row->title,"node/".$row->course_holder_id)  : $row->title;
+    $quiz_title = ($status == "active") ? l($quiz->title, "node/" . $row->quiz_nid) : $quiz->title;
+    
+    $rows[$row->uid] = array(
+      "data" => array(
+        format_date($row->activated, 'short'),
+        format_date($row->ended, 'short'),
+        $row->course_nid,
+        $course_title,
+        $quiz_title,
+        $link_to_best_result,
+        $certificate,
+        $status
+      ),
+      "class" => array("class" => "course-enrolled-" . $row->uid),
+    );
+  }
+  $output .= theme_table(array(
+    'header' => $header,
+    'rows' => $rows,
+    'attributes' => array(),
+    'caption' => "20 trainees listed per page",
+    'options' => array(),
+    'colgroups' => array(),
+    'sticky' => false,
+    'empty' => "No trainees added yet"
+      )
+  );
+  $output .= theme(
+      'pager', array('tags' => array()));
+  return $output;
+}
+
 
 function elearn_course_activity($ciid) {
   global $user;
@@ -1628,7 +1721,7 @@ function elearn_url_outbound_alter(&$path, &$options, &$original_path) {
     $newpath = 'user/' . $user->uid . '/courses-i-created';
   }
   if (in_array('user', $user->roles)) {
-    $newpath = 'user/' . $user->uid . '/courses';
+    $newpath = 'user/' . $user->uid . '/my-courses';
   }
   if (in_array('site_admin', $user->roles)) {
     $newpath = 'admin/commerce/reports';
