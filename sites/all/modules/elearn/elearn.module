@@ -725,6 +725,18 @@ function elearn_menu() {
     'access arguments' => array(1),
     'type' => MENU_NORMAL_ITEM,
   );
+  $items['user/%/add_course'] = array(
+    'title' => 'Add Course',
+    'title callback' => 'check_plain',
+    'page callback' => 'node_add',
+    'page arguments' => array('course'),
+    'access callback' => 'node_access',
+    'access arguments' => array('create', 'course'),
+    'file' => '../../../../modules/node/node.pages.inc',
+     'type' => MENU_LOCAL_TASK,
+    'weight' => 200
+  );
+
 //for USERS
   $items['user/%/my-courses'] = array(
     'title' => 'My courses',
