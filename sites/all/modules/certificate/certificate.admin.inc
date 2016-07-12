@@ -102,7 +102,7 @@ function certificate_alter_node_form(&$form, &$form_state) {
 
   // Add template-mapping form.
   // Note, make sure to set #tree to TRUE.
-  if (user_access('administer certificates')) {
+  if (user_access('administer certificates') || user_access('assign certificates')) {
     $form['certificate'] = array(
       '#type' => 'fieldset',
       '#title' => t('Certificate settings'),
@@ -118,18 +118,16 @@ function certificate_alter_node_form(&$form, &$form_state) {
  * Add mapping elements to a form.
  */
 function certificate_mapping_form(&$form, &$form_state) {
-  if (!empty($form['#node']->nid)) {
-    $nid = $form['#node']->nid;
+  if (!empty($form_state['node']->certificate['node_settings'])) {
+    $stored = $form_state['node']->certificate['node_settings'];
   }
   else {
-    $nid = 0;
-  }
-
-  $stored = array();
-  $sql = "SELECT * FROM {certificate_node} cn WHERE nid = :nid";
-  $result = db_query($sql, array(':nid' => $nid));
-  while ($row = $result->fetch()) {
-    $stored[$row->mapper][$row->type] = $row->template;
+    $stored = array();
+    $sql = "SELECT * FROM {certificate_node} cn WHERE nid = 0";
+    $result = db_query($sql);
+    while ($row = $result->fetch()) {
+      $stored[$row->mapper][$row->type] = $row->template;
+    }
   }
 
   // Custom (module-provided) mappings.
@@ -140,7 +138,7 @@ function certificate_mapping_form(&$form, &$form_state) {
     '' => t('- no action -'),
   );
   foreach (certificate_certificate_load_all() as $cert) {
-    $options[$cert['nid']] = $cert['title'];
+    $options[$cert['nid']] = check_plain($cert['title']);
   }
 
   foreach ($mappings as $map_type => $map) {
@@ -157,7 +155,7 @@ function certificate_mapping_form(&$form, &$form_state) {
       foreach ($map['options'] as $key => $title) {
         $form['certificate']['map'][$map_type][$key] = array(
           '#type' => 'select',
-          '#title' => check_plain($title),
+          '#title' => filter_xss($title),
           '#options' => $options,
           '#default_value' => isset($stored[$map_type][$key]) ? $stored[$map_type][$key] : NULL,
         );
@@ -199,55 +197,6 @@ function certificate_settings_form_submit($form, &$form_state) {
 }
 
 /**
- * Theme overview form.
- *
- * Arranges certificates in a table.
- *
- * @ingroup themeable
- * @ingroup forms
- * @see certificate_overview_form()
- */
-function theme_certificate_overview_form($form) {
-  // TODO: Should this theme certificate_overview_form be declared in hook_theme()?
-  $rows = array();
-  foreach (element_children($form['certificates']) as $key) {
-    $row = array();
-
-    // Render the hidden 'certificate id' field and the title of the certificate into the
-    // same column of the row.
-    $row[] = drupal_render($form['certificates'][$key]['cid']) . drupal_render($form['certificates'][$key]['title']);
-
-    // Render the edit and delete links into their own column.
-    $row[] = drupal_render($form['certificates'][$key]['operations']);
-
-    // Add the new row to our collection of rows.
-    $rows[] = array(
-      'data' => $row,
-    );
-  }
-
-  // If there were no certificates found, let users know.
-  if (count($rows) == 0) {
-    $rows[] = array(array(
-        'data' => t('No certificate templates have been added.'),
-        'colspan' => 3,
-      ));
-  }
-
-  // Render a list of header titles, and our array of rows, into a table. Even
-  // we've already rendered all of our certificates, we always call drupal_render()
-  // on the form itself after we're done, so hidden security fields and other
-  // elements (like buttons) will appear properly at the bottom of the form.
-  $header = array(t('Title'), t('Operations'));
-  // Add an optional caption that appears above the table.
-  $caption = t('');
-  $output = theme('table', array('header' => $header, 'rows' => $rows, 'attributes' => array('id' => 'certificates-overview'), 'caption' => $caption));
-  $output .= drupal_render($form);
-
-  return $output;
-}
-
-/**
  * Theme the form as a table.
  */
 function theme_certificate_history_form($form) {
@@ -279,11 +228,6 @@ function certificate_field_grouping_form($form, &$form_state) {
 
     $groupsinfo = variable_get('certificate_field_groups', array());
     $fieldgroups = variable_get('certificate_field_grouping', array());
-    $form['certificate_add_new_group'] = array(
-      '#prefix' => '<div>',
-      '#suffix' => '</div>',
-      '#markup' => l('Add a new group?', 'admin/structure/certificates/mapping/groups/add'),
-    );
 
     $form['map']['#tree'] = TRUE;
     // Create multiselect box for each field key.
@@ -339,23 +283,28 @@ function certificate_field_grouping_form_submit(&$form, &$form_state) {
 }
 
 /**
- * @todo Please document this function.
- * @see http://drupal.org/node/1354
+ * Form to add a field grouping.
  */
 function certificate_field_grouping_add_form($form, &$form_state) {
   $form = array();
-
-  $form['fieldgroup_name'] = array(
-    '#title' => 'Machine name of field group',
-    '#type' => 'textfield',
-    '#required' => TRUE,
-  );
 
   $form['fieldgroup_title'] = array(
     '#title' => 'Title of field group',
     '#type' => 'textfield',
     '#required' => TRUE,
   );
+
+  $form['fieldgroup_name'] = array(
+    '#type' => 'machine_name',
+    '#title' => 'Machine name of field group',
+    '#required' => TRUE,
+    '#machine_name' => array(
+      'source' => array('fieldgroup_title'),
+      'label' => 'Machine name',
+      'exists' => 'certificate_field_grouping_machine_name_exists',
+    ),
+  );
+
 
   $form['submit'] = array(
     '#type' => 'submit',
@@ -368,13 +317,9 @@ function certificate_field_grouping_add_form($form, &$form_state) {
 /**
  * Validate the fieldgroup machine name.
  */
-function certificate_field_grouping_add_form_validate(&$form, &$form_state) {
-  $fieldgroup_name = $form_state['values']['fieldgroup_name'];
+function certificate_field_grouping_machine_name_exists($value) {
   $fieldgroups = variable_get('certificate_field_groups', array());
-
-  if (isset($fieldgroups[$fieldgroup_name])) {
-    form_set_error('fieldgroup_name', 'Duplicate, please choose another name.');
-  }
+  return isset($fieldgroups[$value]);
 }
 
 /**
@@ -425,20 +370,18 @@ function certificate_field_grouping_delete_form($form, $key) {
  */
 function certificate_templates_list() {
   $certificates = array();
-  $l = l('Create new certificate', 'node/add/certificate', array('query' => drupal_get_destination()));
-  $sql = "select * from {node} where type='certificate'";
+  $sql = "SELECT * FROM {node} WHERE type = 'certificate' ORDER BY title";
   $result = db_query($sql);
   while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
     $destination = drupal_get_destination();
     $certificates[] = array(
-      'title' => $row['title'],
+      'title' => filter_xss_admin($row['title']),
       'edit' => l(t('edit'), "node/{$row['nid']}/edit", array('query' => $destination, 'attributes' => array('class' => 'edit-link'))),
       'delete' => l(t('delete'), "node/{$row['nid']}/delete", array('query' => $destination, 'attributes' => array('class' => 'delete-link'))),
       'preview' => l(t('PDF'), "admin/structure/certificates/templates/preview/" . $row['nid'], array('attributes' => array('class' => 'preview-link'))),
     );
   }
-
-  return $l . theme_table(array('header' => array(t('Title'), t('Edit'), t('Delete'), t('Preview')), 'rows' => $certificates, 'attributes' => array(), 'caption' => '', 'colgroups' => array(), 'sticky' => FALSE, 'empty' => ''));
+  return theme('table', array('header' => array(t('Title'), t('Edit'), t('Delete'), t('Preview')), 'rows' => $certificates, 'empty' => t('No certificate templates have been added.')));
 }
 
 /**
@@ -519,7 +462,7 @@ function theme_certificate_admin_clear_form($variables) {
       'field' => 'cs_count',
     ),
   );
-
+  $rows = array();
   if (!empty($form['cs']['title'])) {
     foreach (element_children($form['cs']['title']) as $key) {
       $rows[] = array(
@@ -529,11 +472,8 @@ function theme_certificate_admin_clear_form($variables) {
       );
     }
   }
-  else {
-    return "No snapshots to clear.";
-  }
 
-  return theme('table', array('header' => $header, 'rows' => $rows)) . drupal_render_children($form);
+  return theme('table', array('header' => $header, 'rows' => $rows, 'empty' => t('No snapshots to clear.'))) . drupal_render_children($form);
 }
 
 /**
@@ -553,5 +493,8 @@ function certificate_admin_clear_form_submit(&$form, &$form_state) {
       ->condition('nid', $nids, 'IN')
       ->execute();
     drupal_set_message(t('Cleared certificate snapshots.'));
+  }
+  else {
+    drupal_set_message(t('No items selected.'), 'error');
   }
 }

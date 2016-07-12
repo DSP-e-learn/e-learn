@@ -59,7 +59,10 @@ function certificate_single($account, $node) {
       drupal_alter('certificate_map', $matches, $node, $account, $map_type, array_keys(array_filter((array) $mapping[$map_type])), array());
       if (count($matches)) {
         foreach ($matches as $match_key) {
-          $template_ids[$mapping[$map_type][$match_key]] = $map_options[$map_type]['options'][$match_key];
+          if ($mapping[$map_type][$match_key] > 0) {
+            // This is a valid certificate ID.
+            $template_ids[$mapping[$map_type][$match_key]] = $map_options[$map_type]['options'][$match_key];
+          }
         }
       }
     }
@@ -87,8 +90,9 @@ function certificate_single($account, $node) {
         '#markup' => t('You are eligible for multiple certificates.'),
       );
       foreach ($template_ids as $template_id => $name) {
+        $name = filter_xss_admin(t($name));
         $rows[] = array(
-          t('@map_name', array('@map_name' => $name)),
+          $name,
           l(t('Download'), "node/$node->nid/certificate/$account->uid/$template_id"),
         );
       }
@@ -111,7 +115,7 @@ function certificate_single($account, $node) {
   if ($template && $node) {
     // See if user already has a snapshotted certificate for a course. If so, grab
     // from the DB. If not, generate a new one.
-    if (variable_get('certificate_snapshots', 0) && $snapshot = certificate_snapshot_load($account, $node)) {
+    if (variable_get('certificate_snapshots', 0) && $snapshot = certificate_snapshot_load($account, $node, $template->nid)) {
       $output = $snapshot['snapshot'];
     }
     else {
@@ -125,10 +129,11 @@ function certificate_single($account, $node) {
       // Now save this generated certificate as a 'snapshot' in the database.
       $snapshot['uid'] = $account->uid;
       $snapshot['nid'] = $node->nid;
+      $snapshot['cid'] = $template->nid;
       $date = getdate();
       $snapshot['date'] = $date[0];
       $snapshot['snapshot'] = $output;
-      if (!$preview) {
+      if (!$preview && variable_get('certificate_snapshots', 0)) {
         certificate_snapshot_save($snapshot);
       }
     }
@@ -209,7 +214,16 @@ function theme_certificate_certificate($variables) {
     if (module_exists('purl')) {
       purl_disable(TRUE);
     }
-    $body = token_replace($body, $types);
+
+    // Clear out un-replaced tokens and use a custom callback, so that we can
+    // have HTML tokens render in the PDF. We probably do not need to sanitize
+    // here as the output is PDF, but it doesn't hurt.
+    $options = array();
+    $options['clear'] = TRUE;
+    $options['sanitize'] = FALSE;
+    $options['callback'] = '_certificate_sanitize_tokens';
+
+    $body = token_replace($body, $types, $options);
   }
 
   $format = $field_items[0]['format'];
@@ -232,10 +246,10 @@ function certificate_print_pdf_wrapper($filename, $html, $orientation) {
   if (function_exists('_print_scan_libs')) {
     // Print 2.x
     $meta = array(
-      'url',
-      'name',
-      'title',
-      'node',
+      'url' => url(current_path(), array('absolute' => TRUE)),
+      'name' => '',
+      'title' => '',
+      'node' => NULL,
     );
     print_pdf_generate_html($html, $meta, $filename, NULL, $orientation);
   }
@@ -243,8 +257,21 @@ function certificate_print_pdf_wrapper($filename, $html, $orientation) {
     // Print 1.x
     global $conf;
     $conf['print_pdf_page_orientation'] = $orientation;
-    print_pdf_generate_html(array('node' => NULL), $html, $filename);
+    $print = array(
+      'url' => url(current_path(), array('absolute' => TRUE)),
+      'node' => NULL,
+    );
+    print_pdf_generate_html($print, $html, $filename);
   }
 
   exit;
+}
+
+/**
+ * Call filter_xss on each of the items in the replacements array.
+ */
+function _certificate_sanitize_tokens(&$replacements) {
+  foreach ($replacements as $token => &$replacement) {
+    $replacement = filter_xss_admin($replacement);
+  }
 }
