@@ -1450,16 +1450,8 @@ function course_activate_submit($form, &$form_state) {
   $course_holder_id = $course_instanse->course_holder_id;
   $course_holder = node_load($course_holder_id);
   $course = node_load($course_holder->field_reference_to_course['und'][0]['target_id']);
-  //a period (In seconds) set from trainer for course to be accessible by users
   $course_period = $course->field_period['und'][0]['value'];
   $end_date = time() + $course_period;
-  $id = db_update('course_instance')
-      ->fields(array(
-        'activated' => REQUEST_TIME,
-        'ended' => $end_date,
-      ))
-      ->condition('ciid', $form_state['values']['ciid'], '=')
-      ->execute();
   $number_attendies = $course_instanse->numb_attendies;
 
   $list_of_emails = _elearn_text_to_array($form_state['values']['list_of_emails'], $number_attendies);
@@ -1499,7 +1491,7 @@ function course_activate_submit($form, &$form_state) {
       watchdog('error', 'Sending mail for ACCOUNT CREATED FAILD. User %name. Course %course', array('%name' => $user_account->mail));
     }
     else {
-      watchdog('action', 'Sending mail for ACCOUNT CREATED created seccseeded. User %name. Course %course', array('%name' => $user_account->mail));
+      watchdog('action', 'Sending mail for ACCOUNT CREATED  seccseeded. User %name. Course %course', array('%name' => $user_account->mail));
     }
   }
 
@@ -1527,15 +1519,6 @@ function course_activate_submit($form, &$form_state) {
     //write in the DB
     //var_dump($access_granted); exit;
     if ($access_granted !== false) {
-      $id = db_insert('course_instance_enrolled')
-          ->fields(array(
-            'ciid' => $form_state['values']['ciid'],
-            'uid' => $user_account->uid,
-            'course_holder_id' => $course_holder_id,
-            'uid' => $user_account->uid,
-          ))
-          ->execute();
-
       //send emal with course holder link
       $language = user_preferred_language($user_account);
       $params['account'] = $user_account;
@@ -1547,10 +1530,33 @@ function course_activate_submit($form, &$form_state) {
       else {
         watchdog('action', 'Sending mail for ACCESS  GRANTED seccseeded. User %name. Course %course', array('%name' => $user_account->mail, '%course' => $course_holder->title));
         $sent_emails[] = $user_account->mail;
+        $id = db_insert('course_instance_enrolled')
+          ->fields(array(
+            'ciid' => $form_state['values']['ciid'],
+            'uid' => $user_account->uid,
+            'course_holder_id' => $course_holder_id,
+            'uid' => $user_account->uid,
+          ))
+          ->execute();
       }
     }
   }
-  drupal_set_message(t("Course activated. <br /> End date: !enddate. <br />Enrollerd users: !enrolled", array('!enddate' => format_date($end_date, 'short'), '!enrolled' => implode(", ", $sent_emails))));
+  if (count($sent_emails) != 0) {
+    //a period (In seconds) set from trainer for course to be accessible by users
+
+    $id = db_update('course_instance')
+        ->fields(array(
+          'activated' => REQUEST_TIME,
+          'ended' => $end_date,
+        ))
+        ->condition('ciid', $form_state['values']['ciid'], '=')
+        ->execute();
+    drupal_set_message(t("Course activated. <br /> End date: !enddate. <br />Enrollerd users: !enrolled", array('!enddate' => format_date($end_date, 'short'), '!enrolled' => implode(", ", $sent_emails))));
+  }
+  else {//we have problems sending emails
+    watchdog('error', 'Sending mails for ACCESS  GRANTED FAILD FOR ALL USERS. Course %course. Course instance %ci', array('%course' => $course_holder->title, '%ci' => $form_state['values']['ciid']));
+    drupal_set_message( t("There were problems activating course. <br /> Please contact the siteadmin or try again later" ), "error");
+  }
 }
 
 /**
