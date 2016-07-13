@@ -1524,7 +1524,7 @@ function course_activate_submit($form, &$form_state) {
       $params['account'] = $user_account;
       $params['body'] = $form_state['values']['text_to_be_sent_by_email'];
       $mail = drupal_mail('elearn', 'elearn_access_granted', $user_account->mail, $language, $params);
-      if (empty($mail)) {
+      if ($mail['result'] === false) {
         watchdog('error', 'Sending mail for ACCESS  GRANTED FAILD. User %name. Course %course', array('%name' => $user_account->mail, '%course' => $course_holder->title));
       }
       else {
