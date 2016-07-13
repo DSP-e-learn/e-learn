@@ -1080,7 +1080,7 @@ function elearn_my_sold_courses($uid) {
 function elearn_my_trainees($uid) {
   $output = "";
   $header = array(
-    array('data' => t('Order number'), 'field' => 'order_id', 'sort' => 'asc'),
+    array('data' => t('Order No'), 'field' => 'order_id', 'sort' => 'asc'),
     array('data' => t('Order date'), 'field' => 'created'),
     array('data' => t('Course number'), 'field' => 'course_nid'),
     array('data' => t('Course title'), 'field' => 'created'),
@@ -1102,7 +1102,6 @@ function elearn_my_trainees($uid) {
   $query->condition('ci.uid', $uid, '=');  
   $result = $query->execute();
   $rows = array();
-
   foreach ($result as $row) {
     $user_enrolled = user_load($row->uid);
     $user_name = $user_enrolled->name;
@@ -1114,7 +1113,7 @@ function elearn_my_trainees($uid) {
 
     $score = (isset($quiz_result->score)) ? $quiz_result->score : t('not evaluated');
     //$is_evaluated = (isset($quiz_result->is_evaluated)) ? t("yes") : t('no');
-    $rows[$row->uid] = array(
+    $rows[$row->uid . "-" . $row->order_id] = array(
       "data" => array(
         $row->order_id,
         format_date($row->created, 'short'),
@@ -1137,7 +1136,7 @@ function elearn_my_trainees($uid) {
         'href' => 'node/' . $row->quiz_nid . '/quiz-results/' . $quiz_result->result_id . "/view",
       );
     }
-    $rows[$row->uid]["data"]['operations'] = array(
+    $rows[$row->uid . "-" . $row->order_id]["data"]['operations'] = array(
       'data' => array(
         '#theme' => 'links__node_operations',
         '#links' => $operations,
