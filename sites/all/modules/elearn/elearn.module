@@ -748,6 +748,15 @@ function elearn_menu() {
     'type' => MENU_LOCAL_TASK,
     'weight' => 100
   );
+  $items['user/%/my-test-results'] = array(
+    'title' => 'My test results',
+    'page callback' => 'elearn_my_test_results_for_users',
+    'page arguments' => array(1),
+    'access callback' => 'elearn_my_courses_for_users_access',
+    'access arguments' => array(1),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 100
+  );
 
   return $items;
 }
@@ -1233,6 +1242,64 @@ function elearn_my_courses_for_users($uid){
 }
 
 
+//for Users
+function elearn_my_test_results_for_users($uid){
+  $output = "";
+  $header = array(
+    array('data' => t('Subject')),
+    array('data' => t('Course number')),
+    array('data' => t('Course title')),
+    array('data' => t('Start date')),
+    array('data' => t('End date')),
+    array('data' => t('Test results')),
+    array('data' => t('Score')),
+  );
+  
+  $query = db_select('quiz_node_results', 'qnr')->distinct()->extend('TableSort')->extend('PagerDefault')->limit(20)->orderByHeader($header);
+  $query->fields('qnr', array('result_id','time_start', 'time_end', 'score', 'nid'));
+  $query->condition('qnr.uid', $uid, '=');  
+  $query->condition('qnr.is_evaluated', 1, '=');   
+  $result = $query->execute();
+  $rows = array();
+
+  foreach ($result as $row) {
+    $course_id = elearn_get_node_referensing_node($row->nid, 'field_quiz', "node");
+    $course = node_load($course_id);
+    $subject = taxonomy_term_load($course->field_category['und'][0]['tid']);
+    $course_holder_id = elearn_get_node_referensing_node($course_id, 'field_reference_to_course', "node");
+
+    $course_title = db_query("SELECT * FROM {node} WHERE nid = :nid ", array(":nid" => $course_id))->fetchObject();
+
+    //var_dump($course);
+    $rows[$row->result_id] = array(
+      "data" => array(
+        l($subject->name, "/courses/".$subject->name),
+        $course_id,
+        l($course_title->title, "/node/".$course_holder_id),
+        format_date($row->time_start, 'short'),
+        format_date($row->time_end, 'short'),
+        l(t('View'), 'node/' . $row->nid . '/quiz-results/' . $row->result_id . "/view") ,
+        $row->score
+      ),
+      "class" => array("class" => "test-result-" . $row->result_id),
+    );
+  }
+  $output .= theme_table(array(
+    'header' => $header,
+    'rows' => $rows,
+    'attributes' => array(),
+    'caption' => "20 trainees listed per page",
+    'options' => array(),
+    'colgroups' => array(),
+    'sticky' => false,
+    'empty' => "No trainees added yet"
+      )
+  );
+  $output .= theme(
+      'pager', array('tags' => array()));
+  return $output;
+}
+
 function elearn_course_activity($ciid) {
   global $user;
   $course_instanse = db_query("select * from {course_instance} where ciid = :ciid", array(":ciid" => $ciid))->fetchObject();
@@ -1650,14 +1717,9 @@ function elearn_exit() {
     $node = node_load(arg(1));
     if ($node->type == 'course_holder') {
       // A node has been viewed, from user so update the node's counters.
-//    db_merge('course_instance_enrolled')
-//      ->key(array('uid' => $user->uid, 'course_holder_id' => arg(1)))
-//      ->fields(array(
-//        'first_accessed' => REQUEST_TIME,
-//        'last_accessed' => REQUEST_TIME,
-//      ))
-//      ->expression('last_accessed', REQUEST_TIME)
-//      ->execute();
+//TODO - think about what we do if the user is enroled to the course more than once
+//       could be from one company or from different companies...
+
 
       $query = db_select('course_instance_enrolled')
           ->condition('uid', $user->uid)
@@ -1843,7 +1905,7 @@ function _elearn_enforce_approval_trainer($form, &$form_state) {
     $form_state['redirect'] = '';
   }else{
     _user_mail_notify('register_no_approval_required', $account);
-    drupal_set_message(t('aaaaaaaaaaaaaaaaaaA welcome message with further instructions has been sent to your e-mail address.'));
+    drupal_set_message(t('A welcome message with further instructions has been sent to your e-mail address.'));
     $form_state['redirect'] = '';
   }
 }
