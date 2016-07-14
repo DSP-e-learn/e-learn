@@ -98,9 +98,10 @@ function elearn_form_alter(&$form, &$form_state, $form_id) {
   }
   if ($form_id == 'user_register_form' || $form_id == "user_profile_form") {
     $form['#attached']['js'] = array(
-      drupal_get_path('module', 'elearn') . '/populate-full-name.js',
+    drupal_get_path('module', 'elearn') . '/populate-full-name.js',
     );
-    //$form['profile_trainer']['field_full_name']['und']['0']['value']['#default_value']  = "ddd";
+  }if ($form_id == 'user_register_form') {
+    $form['#submit'][] = '_elearn_enforce_approval_trainer';
   }
 }
 
@@ -1824,3 +1825,28 @@ function elearn_commerce_order_view($order, $view_mode) {
     );
   }
 }
+
+
+//block trainer upon registration and sent email to siteadmins
+//for other roles - send email with instructions
+function _elearn_enforce_approval_trainer($form, &$form_state) {
+  $account = user_load($form_state['user']->uid);
+  
+  if (in_array('trainer', $account->roles)) {var_dump($account->roles);//echo "ddddd"; exit;
+    //Block account until approved by administrator
+    db_query("UPDATE {users} SET status = 0 WHERE uid = :uid", array(':uid' => $account->uid));
+    // Send "administrator approval required" email.
+    _user_mail_notify('register_pending_approval', $account);
+    drupal_set_message(t('Thank you! Your account is currently being reviewed by an administrator.
+        You will receive another e-mail when it becomes active and will be able to log in
+        at that time.'));
+    $form_state['redirect'] = '';
+  }else{
+    _user_mail_notify('register_no_approval_required', $account);
+    drupal_set_message(t('aaaaaaaaaaaaaaaaaaA welcome message with further instructions has been sent to your e-mail address.'));
+    $form_state['redirect'] = '';
+  }
+}
+
+
+
