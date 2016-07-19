@@ -1071,8 +1071,8 @@ function elearn_test_results_for_trainers($uid){
   $query->fields('ci', array('order_id', 'course_nid', 'quiz_nid', 'created'));
   $query->condition('ci.trainer_uid', $uid, '=');  
   $result = $query->execute();
-  
-  foreach ($result as $row) {
+  $rows = array();
+  foreach ($result as $row) { //echo "$row->ciid ---- $row->order_id ----- $row->uid --- $row->course_nid<br>";
     $trainee_user = user_load($row->uid);
     if (in_array("user", $trainee_user->roles)){//skip trainees that are not users
        //for each trainee select his best quiz results
