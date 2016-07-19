@@ -165,7 +165,6 @@ function elearn_course_publish_unpublish($course_id, $status) {
 }
 
 
-
 function elearn_node_update($node) {
   global $user;
   //handle publish/unpublish of Course to publish/unpublish corresponding Product Display
@@ -346,42 +345,6 @@ function elearn_quiz_node_form_after_build($form) {
   return $form;
 }
 
-/*
- * Implements hook_entity_presave().
- */
-//function elearn_entity_presave($entity, $type) {
-//  if ($type === 'node' && isset($entity->field_product)) {
-//    $product_ids = array();
-//    foreach($entity->field_product as $lang => $items) {
-//      foreach($items as $i => $values) {
-//        if(!empty($values['product_id'])) {
-//          $product_ids[] = $values['product_id'];
-//        }
-//      }
-//    }
-//    $products = entity_load('commerce_product', $product_ids);
-//    foreach($products as $id => $product) {
-//      $changed = false;
-//      //Find all translatable fields for the product
-//      $field_instances = field_info_instances('commerce_product', $product->type);
-//      foreach($field_instances as $field_name => $field_instance) {
-//        $field = field_info_field($field_name);
-//        if(!empty($field['translatable'])) {
-//          //Add a version of the field in the product display's language if it doesn't exist already
-//          if(!isset($product->{$field_name}[$entity->language])) {
-//            //Copy over the language-agnostic value.
-//            $product->{$field_name}[$entity->language] = $product->{$field_name}[LANGUAGE_NONE];
-//            $changed = true;
-//          }
-//        }
-//      }
-//      //Save the product.
-//      if($changed) {
-//        entity_save('commerce_product', $product);
-//      }
-//    }
-//  }
-//}
 
 /**
  * Implements hook_form_FORM_ID_alter().
@@ -440,6 +403,7 @@ function elearn_cart_validate($form, &$form_state) {
   }
 }
 
+
 function elearn_commerce_price_component_type_info() {
   return array(
     'additional_course_price_component' => array(
@@ -450,103 +414,6 @@ function elearn_commerce_price_component_type_info() {
   );
 }
 
-/*
-  //alter the price in cart & order
-  function elearn_commerce_cart_line_item_refresh($line_item, $order_wrapper) {//var_dump($line_item);
-  if ($line_item->type == "product") {
-  $price = 100 * $line_item->quantity; //1 dollar
-  $line_item->commerce_unit_price[LANGUAGE_NONE]['0']['amount'] += $price;//to remove the line item set it's unit_price = null
-  $line_item->commerce_unit_price[LANGUAGE_NONE]['0']['data']['components']['0']['price']['amount'] = $price; //alter the base_price component
-  }
-  }
-
-
-  //alter the price in cart & order
-  // do NOT WORK
-  //function elearn_commerce_cart_line_item_refresh($line_item, $order_wrapper){
-  //
-  //    $line_wrapper = entity_metadata_wrapper('commerce_line_item', $line_item);
-  //
-  //    $new_price = 100;
-  //
-  //    if(!empty($new_price)){
-  //        $line_wrapper->commerce_unit_price->amount->set($new_price);
-  //        $line_wrapper->save();
-  //    }
-  //
-  //}
-
-
-
-  /*
-  function elearn_commerce_payment_order_paid_in_full($transaction) {
-  // No example.
-  //var_dump($transaction); exit;
-  }
-
-  function elearn_commerce_order_presave($order) {
-  // Find out if our order already has an example_2 line item.
-  $type_exists = FALSE;
-  //var_dump($order->commerce_line_items['und']);exit;
-  if (!empty($order->commerce_line_items['und'])) {
-  foreach ($order->commerce_line_items['und'] as $delta => $line_item_entry) {//var_dump($line_item_entry);exit;
-  if ($line_item = commerce_line_item_load($line_item_entry['line_item_id'])) {
-  if ($line_item->type == 'example_line_item_2') {
-  $type_exists = TRUE;
-  break;
-  }
-  }
-  }
-  }
-
-  // If our line item is not yet in the order and the order has an ID,
-  // create a line item to add to the order.
-  if (!$type_exists && $order->order_id > 0) {
-  $line_item = elearn_line_item_2_new($order->order_id);
-  commerce_line_item_save($line_item);
-  $order->commerce_line_items['und'][] = array('line_item_id' => $line_item->line_item_id);
-  }
-  }
-
-  function elearn_line_item_2_new($order_id = 0) {
-  $type = 'example_line_item_2';
-
-  // Create the new line item.
-  $line_item = entity_create('commerce_line_item', array(
-  'type' => $type,
-  'order_id' => $order_id,
-  'quantity' => 1,
-  ));
-
-  // For this example, we'll use a price of USD $5.00 for the "surcharge".
-  $amount = variable_get('line_item_example_line_item_2_amount', 500);
-  var_dump($amount); exit;
-  $currency_code = variable_get('line_item_example_line_item_2_currency', 'USD');
-
-  $line_item->commerce_unit_price = array('und' => array(
-  '0' => array(
-  'amount' => $amount,
-  'currency_code' => $currency_code,
-  ),
-  ));
-
-  $line_item_wrapper = entity_metadata_wrapper('commerce_line_item', $line_item);
-
-  if (!is_null($line_item_wrapper->commerce_unit_price->value())) {
-  // Add the base price to the components array.
-  if (!commerce_price_component_load($line_item_wrapper->commerce_unit_price->value(), 'base_price')) {
-  $line_item_wrapper->commerce_unit_price->data = commerce_price_component_add(
-  $line_item_wrapper->commerce_unit_price->value(),
-  'base_price',
-  $line_item_wrapper->commerce_unit_price->value(),
-  TRUE
-  );
-  }
-  }
-  // Return the line item.
-  return $line_item;
-  }
- */
 
 function elearn_commerce_payment_order_paid_in_full($order, $transaction) {
   commerce_order_status_update($order, 'completed');
@@ -608,8 +475,8 @@ function _user_quiz_results_accesscheck($result_id) {
   // Check if the quiz taking has been completed.
   if ($quiz_result = quiz_result_load($result_id)) {
     $node = node_load($quiz_result->nid, $quiz_result->vid);
-
-    if (_his_user_bought_quiz($result_id) || quiz_access_to_score($node->uid) || ($quiz_result->time_end > 0 && $quiz_result->uid == $user->uid)) {
+    $quiz_creator = ($user->uid == $node->uid) ? true : false;
+    if ($quiz_creator || _his_user_bought_quiz($result_id) || quiz_access_to_score($node->uid) || ($quiz_result->time_end > 0 && $quiz_result->uid == $user->uid)) {
       return TRUE;
     }
   }
@@ -636,8 +503,7 @@ function _order_view_access($order) {
 
 /**
  * Helper function to determine if a user has bought a course that referenses a quiz for a given quiz_result_id.
- *
- * 
+ * * 
  * @param type $result_id/
  */
 function _his_user_bought_quiz($result_id) {
@@ -736,6 +602,15 @@ function elearn_menu() {
     'file' => '../../../../modules/node/node.pages.inc',
      'type' => MENU_LOCAL_TASK,
     'weight' => 200
+  );
+  $items['user/%/test-results'] = array(
+    'title' => 'Test results',
+    'page callback' => 'elearn_test_results_for_trainers',
+    'page arguments' => array(1),
+    'access callback' => 'elearn_my_sold_courses_access',
+    'access arguments' => array(1),
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 100
   );
 
 //for USERS
@@ -1117,6 +992,8 @@ function elearn_my_trainees($uid) {
     $user_name = $user_enrolled->name;
     $user_email = $user_enrolled->mail;
 
+    //TODO - when user us enroled in one and the same course from diffenrebt companies
+    //show test results (link and best result) only to the course of current company
     $first_accessed = $row->first_accessed ? format_date($row->first_accessed, 'short') : t("not accessed");
     $last_accessed = $row->last_accessed ? format_date($row->last_accessed, 'short') : t("");
     $quiz_result = db_query("SELECT * FROM {quiz_node_results} WHERE nid = :nid AND uid = :uid ORDER BY score DESC LIMIT 1", array(":nid" => $row->quiz_nid, ':uid' => $row->uid))->fetchObject();
@@ -1171,6 +1048,74 @@ function elearn_my_trainees($uid) {
 }
 
 
+//for Trainer
+function elearn_test_results_for_trainers($uid){
+  $output = "";
+  $header = array(
+    array('data' => t('Order number')),
+    array('data' => t('Order date')),
+    array('data' => t('Course number')),
+    array('data' => t('Course title')),
+    array('data' => t('User Name')),
+    array('data' => t('Email')),    
+    array('data' => t('Start date')),
+    array('data' => t('End date')),
+    array('data' => t('Test results')),
+    array('data' => t('Score')),
+  );
+  
+  //select all the trainees for all the courses that are bought and activated
+  $query = db_select('course_instance_enrolled', 'cie')->distinct()->extend('TableSort')->extend('PagerDefault')->limit(20)->orderByHeader($header);;
+  $query->join('course_instance', 'ci', 'ci.ciid = cie.ciid');
+  $query->fields('cie', array('ciid',  'uid', 'course_holder_id', 'first_accessed', 'last_accessed', 'result_id'));
+  $query->fields('ci', array('order_id', 'course_nid', 'quiz_nid', 'created'));
+  $query->condition('ci.trainer_uid', $uid, '=');  
+  $result = $query->execute();
+  
+  foreach ($result as $row) {
+    $trainee_user = user_load($row->uid);
+    if (in_array("user", $trainee_user->roles)){//skip trainees that are not users
+       //for each trainee select his best quiz results
+       $quiz_result = db_query("SELECT * FROM {quiz_node_results} WHERE nid = :nid AND uid = :uid ORDER BY score DESC LIMIT 1", array(":nid" => $row->quiz_nid, ':uid' => $row->uid))->fetchObject();
+       $course = node_load($row->course_nid);
+       $trainee_profile = profile2_load_by_user($trainee_user);//var_dump($trainee_profile);
+       if($quiz_result){
+         $rows[$row->quiz_nid - $row->uid] = array(
+           "data" => array(
+             $row->order_id,
+             format_date($row->created, 'short'),
+             l($row->course_nid, "/node/".$row->course_nid),
+             $course->title,
+             $trainee_profile['main']->field_full_name['und'][0]['value'],
+             $trainee_user->mail,
+             format_date($quiz_result->time_start, 'short'),
+             format_date($quiz_result->time_end, 'short'),
+             l(t('View'), 'node/' . $row->quiz_nid . '/quiz-results/' . $quiz_result->result_id . "/view") ,
+             $quiz_result->score
+           ),
+           "class" => array("class" => "test-result-" . $row->result_id),
+         );
+      }
+    }
+  }
+  
+  $output .= theme_table(array(
+    'header' => $header,
+    'rows' => $rows,
+    'attributes' => array(),
+    'caption' => "20 trainees listed per page",
+    'options' => array(),
+    'colgroups' => array(),
+    'sticky' => false,
+    'empty' => "No test results"
+      )
+  );
+  $output .= theme(
+      'pager', array('tags' => array()));
+  return $output;
+}
+
+
 //for USER
 function elearn_my_courses_for_users($uid){
   global $user;
@@ -1211,7 +1156,7 @@ function elearn_my_courses_for_users($uid){
     $course_title = ($status == "active") ? l($row->title,"node/".$row->course_holder_id)  : $row->title;
     $quiz_title = ($status == "active") ? l($quiz->title, "node/" . $row->quiz_nid) : $quiz->title;
     
-    $rows[$row->uid] = array(
+    $rows[$row->uid - $row->course_nid] = array(
       "data" => array(
         format_date($row->activated, 'short'),
         format_date($row->ended, 'short'),
@@ -1894,7 +1839,7 @@ function elearn_commerce_order_view($order, $view_mode) {
 function _elearn_enforce_approval_trainer($form, &$form_state) {
   $account = user_load($form_state['user']->uid);
   
-  if (in_array('trainer', $account->roles)) {var_dump($account->roles);//echo "ddddd"; exit;
+  if (in_array('trainer', $account->roles)) {
     //Block account until approved by administrator
     db_query("UPDATE {users} SET status = 0 WHERE uid = :uid", array(':uid' => $account->uid));
     // Send "administrator approval required" email.
