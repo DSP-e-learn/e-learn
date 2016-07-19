@@ -530,7 +530,7 @@ function elearn_menu() {
     'weight' => 100
   );
   $items['course/%/activate'] = array(
-    'title' => 'Activate course',
+    'title' => '',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('elearn_course_activate_form', 1),
     'access callback' => 'elearn_course_activate_access',
@@ -1333,6 +1333,7 @@ function elearn_course_activity($ciid) {
   return $output;
 }
 
+
 function elearn_course_activate_form($form, &$form_state, $course_instance_id = NULL) {
   global $user;
   if (isset($course_instance_id)) {
@@ -1355,23 +1356,32 @@ function elearn_course_activate_form($form, &$form_state, $course_instance_id = 
   }
 
   $form['title'] = array(
-    '#markup' => "<h2>" . $curse_holder->title . "</h2>"
+    '#markup' => "<h2>Activate course</h2>"
+  );
+  $form['course_title'] = array(
+    '#markup' => "<p>" . t("Course Title: ") . $curse_holder->title . "</p>"
+  );
+  $form['course_number'] = array(
+    '#markup' => "<p>" . t("Course number: ") . $course_instanse->course_nid . "</p>"
+  );
+  $form['order_number'] = array(
+    '#markup' => "<p>" . t("Order number: ") . $course_instanse->order_id  . "</p>"
   );
   $form['created'] = array(
-    '#markup' => "<p>" . t("Date bought: ") . format_date($date_bought, 'short') . "</p>"
+    '#markup' => "<p>" . t("Date of buying: ") . format_date($date_bought, 'short') . "</p>"
   );
   $form['numb_attendies'] = array(
     '#markup' => "<p>" . t("Number of trainees: ") . $number_attendies . "</p>"
   );
   $form['attension'] = array(
-    '#markup' => "<p class=\"error\">" . t("Please be aware that this action can NOT be undane or altered!") . "</p>"
+    '#markup' => "<p class=\"error\">" . t("Please be aware that this action can NOT be undone or altered!") . "</p>"
   );
 
   $form['list_of_emails'] = array(
     '#type' => 'textarea',
-    '#title' => t('List of !numb_attendies emails', array('!numb_attendies' => $number_attendies)),
+    '#title' => t('List of !numb_attendies emails. Please enter valid e-mail addresses of trainees nominated by you for training under enrolled course and order', array('!numb_attendies' => $number_attendies)),
     '#description' => t('The list will be truncated to first !numb_attendies email. Emails will be checked if there is an account with it.' . " <br />"
-        . 'If there isn\'t an account then fist an account will be created. ' . " <br />"
+        . 'If there isn\'t an account  in the system associated with the email entered, then the system will create automatically a new account to the user and will provide him with further instructions to set up his account and get access to the course by the email entered. ' . " <br />"
         . 'If there is an account the user will be enrolled for the course and a letter will be sent with the link to the course', array('!numb_attendies' => $number_attendies)),
     '#required' => true,
   );
