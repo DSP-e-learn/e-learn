@@ -50,9 +50,24 @@ function elearn_trainer_invoice_menu() {
     'access arguments' => array(1),
     'type' => MENU_CALLBACK,
   );
-
+//FOR ADMIN
+  $items['user/%/course-fees'] = array(
+    'title' => 'Course Fees',
+    'page callback' => 'elearn_trainer_invoice_course_fees_for_admin',
+    'access callback' => 'elearn_trainer_invoice_course_fees_for_admin_access',
+    'type' => MENU_LOCAL_TASK,
+    'weight' => 110
+  );
   return $items;
 }
+
+
+function elearn_trainer_invoice_course_fees_for_admin_access(){
+  global $user;
+  if (in_array("site_admin", $user->roles)) return TRUE;
+  else return FALSE;
+}
+
 
 function elearn_trainer_invoice_theme() {
   // Register the template specific for the commerce pdf order.
@@ -86,11 +101,12 @@ function elearn_trainer_invoice_my_invoices_access($uid) {
 }
 
 //trainers can see only their own invoices
+//siteadmins can see all invoices
 function elearn_trainer_invoice_pdf_access($trainer_invoice_id) {
   global $user;
 
   $trainer_uid = db_query("SELECT trainer_uid FROM {trainer_invoice} WHERE invid = :invid", array(":invid" => $trainer_invoice_id))->fetchField();
-  if ($user->uid == $trainer_uid && in_array("trainer", $user->roles)) {
+  if ($user->uid == $trainer_uid && in_array("trainer", $user->roles) || in_array("site_admin", $user->roles)) {
     return TRUE;
   }
   else {
@@ -326,6 +342,122 @@ function elearn_trainer_invoice_my_course_fees($uid) {
   return $output;
 }
 
+
+function elearn_trainer_invoice_course_fees_for_admin() {
+  $output = ""; //"<h5 class=\"error\">" .t('Some text here')."</h5>";
+  $header = array(
+    array('data' => t('Order number'), 'field' => 'order_id', 'sort' => 'asc'),
+    array('data' => t('Order date'), 'field' => 'created'),
+    array('data' => t('Course number'), 'field' => 'course_nid'),
+    array('data' => t('Course title')),
+    array('data' => t('Trainer name')),
+    array('data' => t('Tuition fee')),
+    array('data' => t('Course fee')),
+    array('data' => t('Transaction cost')),
+    array('data' => t('Net course fee')),
+    array('data' => t('Invoice number')),
+  );
+//$header['operations'] = array('data' => t('Course status'));
+// $destination = drupal_get_destination();
+
+  $query = db_select('course_instance', 'c')->extend('TableSort')->extend('PagerDefault')->limit(10)->orderByHeader($header);
+  $query->fields('c', array('ciid', 'order_id', 'uid', 'trainer_uid', 'course_holder_id', 'course_nid', 'quiz_nid', 'numb_attendies', 'created', 'activated', 'ended'));
+  //$query->condition('c.trainer_uid', $uid, '=');
+  $result = $query->execute();
+  $rows = array();
+
+  foreach ($result as $row) {echo "$row->order_id --- <br>";
+
+//TODO find a way to get title without loading the node
+    $course = node_load($row->course_nid); //var_dump($course);
+    $course_title = $course ? $course->title : "";
+    $trainer = user_load($row->trainer_uid);
+
+    $order = commerce_order_load($row->order_id);
+    if ($order === false)
+      continue; //if for example order was deleted...
+    $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+    //var_dump($order);
+    $currency_code = $order_wrapper->commerce_order_total->currency_code->value();
+    $total = $order_wrapper->commerce_order_total->amount->value();
+    $order_total_price = commerce_currency_format($total, $currency_code);
+    $course_fee = $total * 0.7;
+    $order_total_fee = commerce_currency_format($course_fee, $currency_code);
+
+    $transaction = db_query("select remote_id, payment_method from {commerce_payment_transaction} where order_id = :order_id", array(":order_id" => $row->order_id))->fetchObject();
+    if ($transaction->payment_method == "paypal_wps") {
+      $paypal_transaction = commerce_paypal_payment_transaction_load($transaction->remote_id);
+      $paypal_fee = 100 * reset($paypal_transaction->payload)['mc_fee'];
+      $paypal_fee_currency = reset($paypal_transaction->payload)['mc_currency'];
+
+      //$order_transaction_cost = $paypal_fee;
+      $order_transaction_cost = commerce_currency_format($paypal_fee, $paypal_fee_currency);
+      $trasaction_fee = $paypal_fee;
+      $trasaction_fee_currency = $paypal_fee_currency;
+    }
+    if ($transaction->payment_method == "payment_commerce_2") { // no payment for testing
+      $trasaction_fee = 0;
+      $trasaction_fee_currency = $currency_code;
+    }
+    $order_trasaction_fee = commerce_currency_format($trasaction_fee, $trasaction_fee_currency);
+    if ($currency_code == $trasaction_fee_currency) {
+      $net_fee = $course_fee - $trasaction_fee; //var_dump($course_fee);
+      $order_net_fee = commerce_currency_format($net_fee, $currency_code);
+    }
+    else {
+      $order_net_fee = "";
+    }
+
+    //TODO write the liid in the course_instance table in function elearn_commerce_payment_order_paid_in_full
+    foreach ($order_wrapper->commerce_line_items as $delta => $line_item_wrapper) {
+      if (in_array($line_item_wrapper->type->value(), commerce_product_line_item_types())) {
+        $line_item_id = $line_item_wrapper->value()->line_item_id;
+      }
+    }
+    $query = db_select('trainer_invoice', 'tr_inv');
+    $query->join('trainer_invoice_li', 'tr_inv_li', 'tr_inv.invid = tr_inv_li.invid');
+    $query->fields('tr_inv', array('invid', 'date_of_issue', 'invoice_number'));
+    $query->condition('tr_inv_li.liid', $line_item_id, '=');
+    $query->isNotNull('tr_inv.date_of_issue');
+    $query->isNotNull('tr_inv.invoice_number');
+    $result = $query->execute()->fetchObject();
+
+
+    $invoice = ($result) ? l($result->invoice_number, drupal_get_path_alias('trainer-invoice-pdf/' . $result->invid)) : "Not invoiced";
+
+    $rows[$row->order_id] = array(
+      "data" => array(
+        l($row->order_id, drupal_get_path_alias('user/' . $row->uid . '/orders/' . $row->order_id)),
+        format_date($row->created, 'short'),
+        $row->course_nid,
+        l($course_title, drupal_get_path_alias('node/' . $row->course_nid)),
+        l($trainer->name, drupal_get_path_alias('user/' . $trainer->uid)),
+        $order_total_price,
+        $order_total_fee,
+        $order_trasaction_fee,
+        $order_net_fee,
+        $invoice
+      ),
+      "class" => array("class" => "course-instance-" . $row->order_id),
+    );
+  }
+
+  $output .= theme_table(array(
+    'header' => $header,
+    'rows' => $rows,
+    'attributes' => array(),
+    'caption' => "20 courses listed per page",
+    'options' => array(),
+    'colgroups' => array(),
+    'sticky' => false,
+    'empty' => "No course fees yet"
+      )
+  );
+  $output .= theme(
+      'pager', array('tags' => array()));
+  return $output;
+}
+
 function elearn_trainer_invoice_pdf($invid) {
   $html = elearn_trainer_invoice_html($invid);
   $filename = preg_replace('/[^a-z0-9]/', '_', drupal_strtolower('invoice_' . $invid)) . '.pdf';
@@ -345,7 +477,7 @@ function elearn_trainer_invoice_pdf($invid) {
 function elearn_trainer_invoice_html($invid, $include = false) {
   global $user;
   $trainer_invoice = db_query("select * from {trainer_invoice} where invid = :invid", array(":invid" => $invid))->fetchObject();
-  if ($trainer_invoice->trainer_uid != $user->uid)
+  if ($trainer_invoice->trainer_uid != $user->uid && !in_array("site_admin", $user->roles))
     return;
   $trainer = profile2_load_by_user($trainer_invoice->trainer_uid);
   $vars['trainer_invoice']['trainer_full_name'] = array(
