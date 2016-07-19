@@ -77,7 +77,7 @@ function elearn_trainer_invoice_theme() {
 //trainers can see only their own invoices/fees
 function elearn_trainer_invoice_my_invoices_access($uid) {
   global $user;
-  if ($user->uid == $uid && in_array("trainer", $user->roles)) {
+  if ($user->uid == $uid && in_array("trainer", $user->roles) && !in_array("site_admin", $user->roles)) {
     return TRUE;
   }
   else {

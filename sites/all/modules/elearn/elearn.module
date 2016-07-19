@@ -640,7 +640,7 @@ function elearn_menu() {
 //every USER can see only his own courses
 function elearn_my_courses_for_users_access($uid) {
   global $user;
-  if ($user->uid == $uid && in_array("user", $user->roles)) {
+  if ($user->uid == $uid && in_array("user", $user->roles) && !in_array("site_admin", $user->roles)) {
     return TRUE;
   }
   else {
@@ -662,7 +662,7 @@ function elearn_course_activate_access($ciid) {
 //every COMPANY can see only the courses it has bought
 function elearn_my_bought_courses_access($uid) {
   global $user;
-  if ($user->uid == $uid && !in_array("user", $user->roles) && !in_array("trainer", $user->roles)) {
+  if ($user->uid == $uid && !in_array("user", $user->roles) && !in_array("trainer", $user->roles) && !in_array("site_admin", $user->roles)) {
     return TRUE;
   }
   else {
@@ -671,9 +671,9 @@ function elearn_my_bought_courses_access($uid) {
 }
 
 //every TRAINER can see only his own  courses
-function elearn_my_sold_courses_access($uid) {//var_dump($uid);
+function elearn_my_sold_courses_access($uid) {
   global $user;
-  if ($user->uid == $uid && in_array("trainer", $user->roles)) {
+  if ($user->uid == $uid && in_array("trainer", $user->roles) && !in_array("site_admin", $user->roles)) {
     return TRUE;
   }
   else {
