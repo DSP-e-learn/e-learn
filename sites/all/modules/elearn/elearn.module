@@ -597,8 +597,10 @@ function elearn_menu() {
     'title callback' => 'check_plain',
     'page callback' => 'node_add',
     'page arguments' => array('course'),
-    'access callback' => 'node_access',
-    'access arguments' => array('create', 'course'),
+//    'access callback' => 'node_access',
+//    'access arguments' => array('create', 'course'),
+     'access callback' => 'elearn_course_add_access',
+     'access arguments' => array(1),
     'file' => '../../../../modules/node/node.pages.inc',
      'type' => MENU_LOCAL_TASK,
     'weight' => 200
@@ -634,6 +636,12 @@ function elearn_menu() {
   );
 
   return $items;
+}
+
+function elearn_course_add_access($uid){
+  global $user;
+  if (in_array("trainer", $user->roles) && !in_array("site_admin", $user->roles)) return TRUE;
+  else return FALSE;
 }
 
 

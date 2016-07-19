@@ -366,7 +366,7 @@ function elearn_trainer_invoice_course_fees_for_admin() {
   $result = $query->execute();
   $rows = array();
 
-  foreach ($result as $row) {echo "$row->order_id --- <br>";
+  foreach ($result as $row) {//echo "$row->order_id --- <br>";
 
 //TODO find a way to get title without loading the node
     $course = node_load($row->course_nid); //var_dump($course);
