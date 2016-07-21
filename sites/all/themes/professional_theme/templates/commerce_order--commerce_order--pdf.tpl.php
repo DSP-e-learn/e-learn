@@ -95,7 +95,7 @@
                             <td> 0.00</td>
                         </tr>
                         <tr>
-                            <th> Total amaunt                        </th>
+                            <th> Total amount                        </th>
                             <th> <?php print render($content['commerce_order_total']); ?></th>
                         </tr>
 

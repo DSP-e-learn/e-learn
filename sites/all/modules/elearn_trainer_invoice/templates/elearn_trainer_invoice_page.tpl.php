@@ -218,7 +218,7 @@ table.order-totals td, table.order-totals th{ border: 0px solid grey; text-align
                 <td>
                   <table  class="order-totals" border="0" >
                         <tr>
-                            <th> Total amaunt                        </th>
+                            <th> Total amount                        </th>
                             <th> <?php print render($trainer_invoice['invoice_total']); ?></th>
                         </tr>
 
