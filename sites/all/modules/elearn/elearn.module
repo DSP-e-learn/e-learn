@@ -808,7 +808,7 @@ function elearn_my_bought_courses($uid) {
     //TODO find a way to get title without loading the node
     $order = commerce_order_load($row->order_id);
 
-    $rows[$row->order_id] = array(
+    $rows[$row->ciid] = array(
       "data" => array(
         l($order->order_id, drupal_get_path_alias('user/' . $uid . '/orders/' . $row->order_id)),
         $row->course_nid,
@@ -818,7 +818,7 @@ function elearn_my_bought_courses($uid) {
         $actvated,
         $ended
       ),
-      "class" => array("class" => "course-instance-" . $row->order_id),
+      "class" => array("class" => "course-instance-" . $row->ciid),
     );
     $operations = array();
     //if the course is not activated and one year period since purchase is not passed 
@@ -849,7 +849,7 @@ function elearn_my_bought_courses($uid) {
       );
     }
     // Render an unordered list of operations links.
-    $rows[$row->order_id]["data"]['operations'] = array(
+    $rows[$row->ciid]["data"]['operations'] = array(
       'data' => array(
         '#theme' => 'links__node_operations',
         '#links' => $operations,
@@ -1678,6 +1678,7 @@ function elearn_exit() {
   // We are counting content views.
   if (in_array("user", $user->roles) && arg(0) == 'node' && is_numeric(arg(1)) && arg(2) == NULL) {
     $node = node_load(arg(1));
+    //var_dump($node);
     if ($node->type == 'course_holder') {
       // A node has been viewed, from user so update the node's counters.
 //TODO - think about what we do if the user is enroled to the course more than once
@@ -1690,6 +1691,7 @@ function elearn_exit() {
           ->isNotNull('first_accessed')
       ;
       $num_rows = $query->countQuery()->execute()->fetchField();
+      //var_dump($num_rows);
       if ($num_rows > 0) {
         db_update('course_instance_enrolled')
             ->fields(array(
