@@ -251,7 +251,7 @@ function trainer_invoice_issue_sumbit($form, &$form_state) {
 function elearn_trainer_invoice_my_invoices($uid) {
   $output = ""; //"<h5 class=\"error\">" .t('Some text here')."</h5>";
   $header = array(
-    array('data' => t('From Date'), 'field' => 'period_start', 'sort' => 'asc'),
+    array('data' => t('From Date'), 'field' => 'period_start', 'sort' => 'desc'),
     array('data' => t('To Date'), 'field' => 'period_end'),
     array('data' => t('Invoice issue')),
     array('data' => t('Invoice view')),
@@ -305,7 +305,7 @@ function elearn_trainer_invoice_my_invoices($uid) {
 function elearn_trainer_invoice_my_course_fees($uid) {
   $output = ""; //"<h5 class=\"error\">" .t('Some text here')."</h5>";
   $header = array(
-    array('data' => t('Order number'), 'field' => 'order_id', 'sort' => 'asc'),
+    array('data' => t('Order number'), 'field' => 'order_id', 'sort' => 'desc'),
     array('data' => t('Order date'), 'field' => 'created'),
     array('data' => t('Course number'), 'field' => 'course_nid'),
     array('data' => t('Course title')),
@@ -421,7 +421,7 @@ function elearn_trainer_invoice_trainer_inoices_for_admin(){
   $output = ""; //"<h5 class=\"error\">" .t('Some text here')."</h5>";
   $header = array(
     array('data' => t('Trainer')),
-    array('data' => t('Invoice date'), 'field' => 'date_of_issue', 'sort' => 'asc'),
+    array('data' => t('Invoice date'), 'field' => 'date_of_issue', 'sort' => 'desc'),
     array('data' => t('Invoice number'), 'field' => 'invoice_number'),
     array('data' => t('Invoice amount')),
     array('data' => t('Invoice view')),
@@ -496,7 +496,7 @@ function elearn_trainer_invoice_trainer_inoices_for_admin(){
 function elearn_trainer_invoice_course_fees_for_admin() {
   $output = ""; //"<h5 class=\"error\">" .t('Some text here')."</h5>";
   $header = array(
-    array('data' => t('Order number'), 'field' => 'order_id', 'sort' => 'asc'),
+    array('data' => t('Order number'), 'field' => 'order_id', 'sort' => 'desc'),
     array('data' => t('Order date'), 'field' => 'created'),
     array('data' => t('Course number'), 'field' => 'course_nid'),
     array('data' => t('Course title')),
