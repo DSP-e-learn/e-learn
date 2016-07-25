@@ -17,7 +17,7 @@ function elearn_trainer_invoice_menu() {
     'weight' => 110
   );
   $items['user/%/my-invoices'] = array(
-    'title' => 'My Invoices',
+    'title' => 'My Invoices/Create Invoice',
     'page callback' => 'elearn_trainer_invoice_my_invoices',
     'page arguments' => array(1),
     'access callback' => 'elearn_trainer_invoice_my_invoices_access',
@@ -260,7 +260,7 @@ function elearn_trainer_invoice_my_invoices($uid) {
 
 
   $query = db_select('trainer_invoice', 'tr_inv')->extend('TableSort')->extend('PagerDefault')->limit(10)->orderByHeader($header);
-  $query->fields('tr_inv', array('invid', 'date_of_issue', 'invoice_number', 'period_start', 'period_end'));
+  $query->fields('tr_inv', array('invid', 'date_of_issue', 'invoice_number', 'period_start', 'period_end', 'date_of_payment'));
   $query->condition('tr_inv.trainer_uid', $uid, '=');
   $result = $query->execute();
   $rows = array();
@@ -274,13 +274,14 @@ function elearn_trainer_invoice_my_invoices($uid) {
       $inv = l(t("CREATE INVOICE"), drupal_get_path_alias('user/' . $uid . '/my-invoices/trainer-invoice-issue/' . $row->invid));
       $pdf = ""; //l('invoice preview', drupal_get_path_alias('user/' . $uid . '/my-invoices/trainer-invoice-pdf-preview/' . $row->invid));
     }
+    $date_of_payment = ($row->date_of_payment) ? format_date($row->date_of_payment, 'short') : "";
     $rows[$row->invid] = array(
       "data" => array(
         format_date($row->period_start, 'short'),
         format_date($row->period_end, 'short'),
         $inv,
         $pdf,
-        ''
+        $date_of_payment,
       ),
       "class" => array("class" => "course-instance-" . $row->invid),
     );

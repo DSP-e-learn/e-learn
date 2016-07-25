@@ -783,7 +783,7 @@ function elearn_courses_i_created($uid){
 function elearn_my_bought_courses($uid) {
   $output = "<h5 class=\"error\">" . t('Atention: A course can be activated ONLY during an ONE YEAR period after the purchase.') . "</h5>";
   $header = array(
-    array('data' => t('Order number'), 'field' => 'order_id', 'sort' => 'asc'),
+    array('data' => t('Order number'), 'field' => 'order_id', 'sort' => 'desc'),
     array('data' => t('Course number'), 'field' => 'course_nid'),
     array('data' => t('Course title'), 'field' => 'created'),
     // array('data' => t('Trainees'), 'field' => 'numb_attendies'),
@@ -878,7 +878,7 @@ function elearn_my_bought_courses($uid) {
 function elearn_my_sold_courses($uid) {
   $output = ""; //"<h5 class=\"error\">" .t('Some text here')."</h5>";
   $header = array(
-    array('data' => t('Order number'), 'field' => 'order_id', 'sort' => 'asc'),
+    array('data' => t('Order number'), 'field' => 'order_id', 'sort' => 'desc'),
     array('data' => t('Order date'), 'field' => 'created'),
     array('data' => t('Course number'), 'field' => 'course_nid'),
     array('data' => t('Course title')),
@@ -973,11 +973,11 @@ function elearn_my_sold_courses($uid) {
 function elearn_my_trainees($uid) {
   $output = "";
   $header = array(
-    array('data' => t('Order No'), 'field' => 'order_id', 'sort' => 'asc'),
+    array('data' => t('Order No'), 'field' => 'order_id', 'sort' => 'desc'),
     array('data' => t('Order date'), 'field' => 'created'),
     array('data' => t('Course number'), 'field' => 'course_nid'),
     array('data' => t('Course title'), 'field' => 'created'),
-    array('data' => t('User'), 'field' => 'uid'),
+    array('data' => t('User name'), 'field' => 'uid'),
     array('data' => t('User email'), 'field' => 'uid'),
     array('data' => t('First accessed'), 'field' => 'first_accessed'),
     array('data' => t('Last accessed'), 'field' => 'last_accessed'),
@@ -997,8 +997,18 @@ function elearn_my_trainees($uid) {
   $rows = array();
   foreach ($result as $row) {
     $user_enrolled = user_load($row->uid);
-    $user_name = $user_enrolled->name;
     $user_email = $user_enrolled->mail;
+    $trainee_profile = profile2_load_by_user($row->uid);
+    
+    if(in_array("user", $user_enrolled->roles)){
+      $user_full_name =   (isset($trainee_profile['main']->field_full_name['und'][0]['value'])) ? $trainee_profile['main']->field_full_name['und'][0]['value'] : "";
+    }elseif(in_array("trainer", $user_enrolled->roles)){
+      $user_full_name =   $trainee_profile['trainer']->field_full_name['und'][0]['value'];
+    }elseif(in_array("company", $user_enrolled->roles)){
+      $user_full_name =   $trainee_profile['company']->field_company_full_name['und'][0]['value'];
+    }else{
+      $user_full_name = "";
+    }
 
     //TODO - when user us enroled in one and the same course from diffenrebt companies
     //show test results (link and best result) only to the course of current company
@@ -1014,7 +1024,7 @@ function elearn_my_trainees($uid) {
         format_date($row->created, 'short'),
         $row->course_nid,
         $row->title,
-        $user_name,
+        $user_full_name,
         $user_email,
         $first_accessed,
         $last_accessed,
@@ -1060,7 +1070,7 @@ function elearn_my_trainees($uid) {
 function elearn_test_results_for_trainers($uid){
   $output = "";
   $header = array(
-    array('data' => t('Order number')),
+    array('data' => t('Order number'), 'field' => 'order_id', 'sort' => 'desc'),
     array('data' => t('Order date')),
     array('data' => t('Course number')),
     array('data' => t('Course title')),
@@ -1129,7 +1139,7 @@ function elearn_my_courses_for_users($uid){
   global $user;
   $output = "";
   $header = array(
-    array('data' => t('Start date'), 'field' => 'activated', 'sort' => 'asc'),
+    array('data' => t('Start date'), 'field' => 'activated', 'sort' => 'desc'),
     array('data' => t('End date'), 'field' => 'ended'),
     array('data' => t('Course number'), 'field' => 'course_nid'),
     array('data' => t('Course title')),
@@ -1272,7 +1282,7 @@ function elearn_course_activity($ciid) {
 
   $header = array(
     array('data' => t('User'), 'field' => 'uid'),
-    array('data' => t('User email'), 'field' => 'uid', 'sort' => 'asc'),
+    array('data' => t('User email'), 'field' => 'uid', 'sort' => 'desc'),
     array('data' => t('First accessed'), 'field' => 'first_accessed'),
     array('data' => t('Last accessed'), 'field' => 'last_accessed'),
     array('data' => t('Best result(%)')),
