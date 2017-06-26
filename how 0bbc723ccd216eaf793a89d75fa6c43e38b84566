@@ -1,0 +1,678 @@
+[33mcommit 0bbc723ccd216eaf793a89d75fa6c43e38b84566[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Apr 21 22:53:53 2016 +0300
+
+    readme
+
+[33mcommit fb8a9fff440f460b2c6da100351e2ea29eb7d066[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Apr 21 22:52:07 2016 +0300
+
+    course activity page
+
+[33mcommit a28e3018a288aced31d2783110938eb36410be2f[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Apr 21 11:06:07 2016 +0300
+
+    record user views of the course holder
+
+[33mcommit 19e0a208253e0a95f6a1faa2223edf8ee8f62e34[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Apr 21 01:25:41 2016 +0300
+
+    readme
+
+[33mcommit 10cead88a3ae3e2466910eb97cac095855310a04[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Apr 21 01:22:35 2016 +0300
+
+    Course activation by company - create accounts, grant access, send emails
+
+[33mcommit 7c06346094c969c7b10295b9719d5d2e75e0b6eb[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Fri Apr 15 22:54:28 2016 +0300
+
+    readme
+
+[33mcommit 6df2609429b4e0f017314338b14fa81bd2c57b9c[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Apr 4 01:14:24 2016 +0300
+
+    DB - move creation of course holder, product and product display from Rules to code
+
+[33mcommit 70eb7182f851e8d9b8207b2d4274ccceb4dc3896[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Apr 4 01:09:37 2016 +0300
+
+    move creation of course holder, product and product display from Rules to code
+
+[33mcommit 37e0aff0c65f9e1c356596c6eb8b103f2c3e3b7c[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Apr 4 01:08:40 2016 +0300
+
+    iban_field and field_group modules
+
+[33mcommit 1f73aedc1ece6eef64c95fe9062df095db820df9[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Tue Mar 29 22:37:52 2016 +0300
+
+    readme
+
+[33mcommit 7eadabdecc4ee8345b278dcec9889e6db10e58c0[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Mar 28 12:03:23 2016 +0300
+
+    DB - price component depending on number of attendies
+
+[33mcommit b245a48566ffea793c1d615d1c13a1df421773f8[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Mar 28 12:01:28 2016 +0300
+
+    price component depending on number of attendies
+
+[33mcommit 0f155742054ee15b27aba3460ecce637aad4a8fc[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Mar 28 11:58:54 2016 +0300
+
+    changes in requirements
+
+[33mcommit b36a64d802205b74dd94a2c95866e9a205fd0151[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Mar 9 15:00:22 2016 +0200
+
+    allow deleting of invoiced orders
+
+[33mcommit 6e4abf4146db9a9636336f74044da99c4c5de6cc[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Tue Mar 8 00:12:34 2016 +0200
+
+    restrict buyer by role and cart to one product
+
+[33mcommit bca0b6d3c63b785c33d5c5ba82362354c17d1121[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Mar 7 21:13:29 2016 +0200
+
+    README - changes in the reqirements for the project
+
+[33mcommit 89f45304eac170642c76d76e055267f30482838c[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Mar 2 12:49:15 2016 +0200
+
+    DB adding Invoiced state to views for Reports
+
+[33mcommit 62224fb090002af06d0bf11dbae043a7ea8b99d7[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Mar 2 12:46:14 2016 +0200
+
+    DB-INVOICES
+
+[33mcommit 3f19dfb85bd617e9a910652cef8e6fc19a415c60[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Mar 2 12:45:44 2016 +0200
+
+    spress warning in watchdog
+
+[33mcommit c7d50ce2c20d6533f60441a6b732c4c04c8f7bb9[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Tue Mar 1 23:49:47 2016 +0200
+
+    readme
+
+[33mcommit 1aae0454fbb0e137b2813fc9faae9fec06756295[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Tue Mar 1 22:37:32 2016 +0200
+
+    commerce_billy - invoicing for commerce
+
+[33mcommit 8479a3151b280a484465ccb5a181963180ce81bc[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Tue Mar 1 22:36:37 2016 +0200
+
+    fix dompdf library
+
+[33mcommit a69dca911b90a139912ad4be3757cfc61ef537e2[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Feb 29 12:24:43 2016 +0200
+
+    DB-reports
+
+[33mcommit 57879b8c86292e0582cc1d7c06c960e5ea44096c[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Feb 29 12:24:16 2016 +0200
+
+    commerce_reports and its dependants
+
+[33mcommit 7b250f6db074124000b9c9a110c7257f755e3e28[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Feb 29 12:22:29 2016 +0200
+
+    applying apatch to i18n-taxonomy
+
+[33mcommit ca360dddefbc4b9bf255e460d75c446a6653a054[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Feb 25 21:52:08 2016 +0200
+
+    ipn
+
+[33mcommit b55916e84a4507913e09825edfbbab41c54c2c76[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Feb 25 19:56:33 2016 +0200
+
+    update Drupal core to 7.43
+
+[33mcommit 08f647f790c39e818ed3901bab620dcd18d0af67[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Feb 25 19:51:06 2016 +0200
+
+    redme
+
+[33mcommit d8db3f4b8a76a7bf4ff3950dff53d61368641982[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Feb 24 20:33:50 2016 +0200
+
+    DB-paypal
+
+[33mcommit e56bd000ca0117a9fbc159f266ad4eff130bdb71[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Feb 24 20:33:16 2016 +0200
+
+    PAYPAL
+
+[33mcommit fe98afa9072aae46d389c09c632339632bf5e9df[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Feb 22 12:05:00 2016 +0200
+
+    a little styling for slideshow and video
+
+[33mcommit 4343046414d714b5b2f314d78773403fbb1f1c16[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Fri Feb 19 15:56:05 2016 +0200
+
+    DB - slide from images
+
+[33mcommit 1564dffb150d8fa1429d8e5d9f92ed21cb9c8dae[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Feb 18 22:44:06 2016 +0200
+
+    search site
+
+[33mcommit 171d54addb58dffcb4f0c1fdfe44d62ee392fdbf[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Feb 18 22:43:20 2016 +0200
+
+    images slide
+
+[33mcommit fb0f135d9e435b50880e29f2f819743190ebb9d4[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Feb 18 22:42:07 2016 +0200
+
+    prevent right clicking
+
+[33mcommit f9e7e63f470ba44bde79040f633925b9e498687e[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Feb 18 08:57:48 2016 +0200
+
+    readme
+
+[33mcommit e7002b35a5406295b2541db708d3b2ff6f8196aa[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Feb 18 00:19:50 2016 +0200
+
+    DB - video field added
+
+[33mcommit 8968469d14c529e980e77210276f4cf4ca4054b0[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Feb 18 00:19:23 2016 +0200
+
+    videojs module
+
+[33mcommit 649580900bfdcc5681a13c6e9905618ad1d09804[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Feb 18 00:18:58 2016 +0200
+
+    mediaelement and dependant libraries modules
+
+[33mcommit 91fb80d01642ff566a6d052dab045860aec42ac9[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Feb 18 00:10:53 2016 +0200
+
+    fix translating views title code
+
+[33mcommit 5d10b4ef6396e9dc7e0a65b30d40d0dbe7ac9e8b[m
+Author: Diana Parvanova <parvanova@gmail.com>
+Date:   Wed Feb 17 11:31:57 2016 +0200
+
+    php.ini - fix permissions
+
+[33mcommit 6adde3d0183891c5b936d8399ebec227b9f8042b[m
+Author: Diana Parvanova <parvanova@gmail.com>
+Date:   Wed Feb 17 11:28:55 2016 +0200
+
+    php.ini
+
+[33mcommit 6a8b420d56be3e7bcf1000c9c1c017ba9a75eef7[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Feb 17 00:21:39 2016 +0200
+
+    localice views titles
+
+[33mcommit 11ac18098537e2cb966aa68ce0078c499f0b80ee[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Feb 17 00:20:53 2016 +0200
+
+    add new region with lang flags
+
+[33mcommit 7c4435fedfadc51e902e7eeab1554ae3a88621e9[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Feb 17 00:16:51 2016 +0200
+
+    DB - home page and translations
+
+[33mcommit a31a205c8cb25a013318656324a0304f54496e1c[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Feb 17 00:15:30 2016 +0200
+
+    DB - home page and translations
+
+[33mcommit b51948c8adcab11fffd3d70ef14a4cbafdc24e07[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Tue Feb 16 09:27:10 2016 +0200
+
+    language icons module
+
+[33mcommit 3c200f61591352e69d7337741a425b38d31ffe36[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Tue Feb 16 09:26:42 2016 +0200
+
+    DB - taxonomy_menu  translation works
+
+[33mcommit ee08f12dde20f0dd1a8d36a049c5011d7d1626ed[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Feb 15 01:31:11 2016 +0200
+
+    update to taxonomy_menu dev and apply a patch to allow translations
+
+[33mcommit 15f1f8d387c7801ef44606cec2897319c74b3c3d[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Feb 15 00:59:24 2016 +0200
+
+    update fo Drupal 7.42
+
+[33mcommit 190d599b16e0af4bb37798f3622f9e5cacf524db[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Fri Feb 12 12:52:39 2016 +0200
+
+    remove php values from htaccess
+
+[33mcommit c4e2abedff41436f6a6cb03e8e0ef55ec2437bf4[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Fri Feb 12 10:14:09 2016 +0200
+
+    db from staging befor reinstallation
+
+[33mcommit 5089492e8743fa5b76f69d21c6dd63e799a7fc4a[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Fri Feb 5 22:37:29 2016 +0200
+
+    i18nviews module
+
+[33mcommit e2220dc3f911f54aaa0a76182a7503f8e0cbefa2[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Feb 4 12:04:58 2016 +0200
+
+    DB - taxonomy menu is not translatable
+
+[33mcommit 52701247651b0c2ebd89d5ede55b9cccf3367f66[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Feb 4 00:44:31 2016 +0200
+
+    taxonomy_menu_i18n sandbox module
+
+[33mcommit 55513a5839bb879d582fc3834b1a896c053d437e[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Tue Feb 2 10:38:52 2016 +0200
+
+    translation_own_nodes module
+
+[33mcommit df169fe3f9a9e7284f8268f33cb3b816de2ec9ad[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Feb 1 01:03:29 2016 +0200
+
+    db
+
+[33mcommit 61426c0bece1e2c79c0084695687854b9477dd31[m
+Merge: 8c56fa6 45dc1a4
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Feb 1 00:16:40 2016 +0200
+
+    Merge branch 'master' of github.com:DSP-e-learn/e-learn
+
+[33mcommit 8c56fa6d686c45b67b842ee3f1dcd5dab3e90a5d[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Feb 1 00:16:22 2016 +0200
+
+    usless code reg Entity Translation
+
+[33mcommit 45dc1a43bcc3da9c0bcab45dbbd1b52e37fc41a1[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Sun Jan 31 21:28:19 2016 +0200
+
+    increesing max upload size of PHP
+
+[33mcommit 504b2bcb70a6d9441352828863e5b9e4397389eb[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Sat Jan 30 00:16:11 2016 +0200
+
+    transliteration module
+
+[33mcommit 3c36ce386403a17c4d1a943d9de9716f1fa29db0[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Fri Jan 29 23:52:53 2016 +0200
+
+    translations
+
+[33mcommit 36df53287537d234676736a0cfa9f7434d93ce69[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Fri Jan 29 23:52:19 2016 +0200
+
+    Db - period and multilanguage
+
+[33mcommit 79c49883496081fa372ebccfc5cc60a8e2bbb216[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Fri Jan 29 21:53:25 2016 +0200
+
+    variable module - i18n depends on it
+
+[33mcommit 7d8b7fe05de0c1466e7a831439318c6267ba9647[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Fri Jan 29 21:52:43 2016 +0200
+
+    localization update module
+
+[33mcommit 9649af9c787ce0c68db3632b8a1a538814bacc76[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Fri Jan 29 18:57:02 2016 +0200
+
+    title module - for i18n
+
+[33mcommit a502ac43427167abdeb305372eccd2366585d26d[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Jan 28 10:04:29 2016 +0200
+
+    internationalization module
+
+[33mcommit bf4b55a0b836647d007d4fd9b53b5cff243e0661[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Jan 27 23:19:54 2016 +0200
+
+    entity translation module
+
+[33mcommit 891b497ab88b97611bae987ce728a9e51863afab[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Jan 27 23:19:09 2016 +0200
+
+    info fix
+
+[33mcommit 3d2423d33eb15b085c5212bd2fcef1a748ad1443[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Tue Jan 26 12:11:04 2016 +0200
+
+    interval module - to add interval to a date type
+
+[33mcommit 1852fcde12cfefa9285dcfc6ce1a309f5e7df63b[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Tue Jan 26 01:11:59 2016 +0200
+
+    db
+
+[33mcommit f21b66eb1bcab851d2085a1a2609609c48d86bbf[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Jan 25 22:00:17 2016 +0200
+
+    Date module
+
+[33mcommit 702e0df7ca4fa82ae6cf2eb6fe04761ef13606df[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Jan 25 21:59:53 2016 +0200
+
+    admin menu
+
+[33mcommit 7669bff46f9c3f2263dc875c1138eee49b918d14[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Jan 25 18:14:43 2016 +0200
+
+    time period module
+
+[33mcommit edd7643945549f01122549703573c9f08c90d003[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Sat Jan 23 23:38:00 2016 +0200
+
+    new requirements from user
+
+[33mcommit c127b5a0bc6fd675580339b6af27ee844f7799da[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Sat Jan 23 19:14:52 2016 +0200
+
+    fixing options in quiz creation
+
+[33mcommit e6d9e19957216445bfd183237bbc4971b6564536[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Jan 21 22:53:31 2016 +0200
+
+    hide-formats module
+
+[33mcommit 3127068f72d026483629613debb451cafc116d23[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Jan 21 22:53:11 2016 +0200
+
+    more form cleaning
+
+[33mcommit 5276e2aaf75207e3aea37267a321ff0c88236a18[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Jan 21 12:09:27 2016 +0200
+
+    hide options on quiz creation
+
+[33mcommit 6e1670ccc3208eb116d3db640047524dca10a29e[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Jan 21 00:17:18 2016 +0200
+
+    fix to hide quiz reference field on course creation
+
+[33mcommit 64e705e1636ced780226517fa06034533b31d159[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Jan 20 00:50:12 2016 +0200
+
+    elearn module
+
+[33mcommit ef1c939ffb6f17867faf34c7e9a695951cd617b1[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Tue Jan 19 10:06:01 2016 +0200
+
+    new image for front page slide
+
+[33mcommit 0c681549472ad1978a4b7b8f3fa56d3bb43379ba[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Tue Jan 19 01:07:12 2016 +0200
+
+    readme
+
+[33mcommit 2af6b0f159eae668852d7f5639e4ccdeb379e4cd[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Jan 18 22:11:33 2016 +0200
+
+    hide title for node type = course
+
+[33mcommit 829f4041ce3178e39ffb4211d04e030b1c089ee5[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Fri Jan 15 00:02:01 2016 +0200
+
+    readme
+
+[33mcommit 9f1cb319a649550ea801d5f1cfa9a7b59dc8fd1e[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Jan 14 22:31:59 2016 +0200
+
+    commerce address on file
+
+[33mcommit fe09079ae1473bfe4601f220c028aafb435508b3[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Tue Jan 12 21:46:20 2016 +0200
+
+    changes in users_workflow feature
+
+[33mcommit 6d7f281ffdfb555b8ea3e8a66b42472fc0f42819[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Tue Jan 12 21:45:29 2016 +0200
+
+    changes in trainer_workflow feature
+
+[33mcommit 53b65ba1ec49758662cd0387ba36c6493bd3983d[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Tue Jan 12 21:35:05 2016 +0200
+
+    pathauto
+
+[33mcommit 83f84f0d74c4127a47307f311e415b11ecb0b71c[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Tue Jan 12 17:50:51 2016 +0200
+
+    taxonomy menu
+
+[33mcommit 85b2246630e30b0df97967ab433886022a3a5b1f[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Tue Jan 12 12:25:31 2016 +0200
+
+    readme
+
+[33mcommit 88fc5e0277ffd60c4033bc4c027b872e4b066134[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Tue Jan 12 12:24:47 2016 +0200
+
+    proffesional theme
+
+[33mcommit 7194425e621d13134783eeefacbc704acce3dacc[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Tue Jan 12 09:08:57 2016 +0200
+
+    responsive drop-down menu
+
+[33mcommit 679b51d3594869e540708190a0547830933d7a83[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Jan 11 18:40:58 2016 +0200
+
+    userone - protect user #1
+
+[33mcommit 4013e23068bb5b3425296fbe8cdf34b0e0e92895[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Jan 11 18:38:36 2016 +0200
+
+    site admin workflow feature module
+
+[33mcommit 86b0c58827ff42d4474ae2bb428cb7c0051e72f2[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Mon Jan 11 17:58:15 2016 +0200
+
+    add user protect module
+
+[33mcommit 9f86d67f6fd03d1b1571617f94f175fd45b32840[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Fri Jan 8 22:09:08 2016 +0200
+
+    readme
+
+[33mcommit 6261f3d71a1fca24dc24acd36ed376144fe9c0d9[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Fri Jan 8 21:55:17 2016 +0200
+
+    user_workflow feature module
+
+[33mcommit 8a58e15d2ee5a9650dc072ae8869cc3006a86e6c[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Fri Jan 8 21:37:30 2016 +0200
+
+    token module
+
+[33mcommit ca7e458c1fcf2b0e28f6d515afba90606c6e4266[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Fri Jan 8 10:38:30 2016 +0200
+
+    updates in readme
+
+[33mcommit 99e05b0b7279b7c3de581ec5191e902b6667c1ae[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Jan 7 18:58:07 2016 +0200
+
+    add tariner profile to trainer workflow feature
+
+[33mcommit 1bd65e507820d969e7eaffa13f8d6392990595a2[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Jan 7 18:54:43 2016 +0200
+
+    profile2 anf profile2_regpath
+
+[33mcommit 45f9621931cbf9e4d59c453280c3dbceef9b4348[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Thu Jan 7 08:59:05 2016 +0200
+
+    add a question in readme
+
+[33mcommit 6f23939a404194cfbaf7f1fc46a1e2e5d989ff96[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Jan 6 23:34:48 2016 +0200
+
+    change in trainer feature
+
+[33mcommit d2135723ac55fdbf999e213ea6135062a00bddf0[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Jan 6 21:20:58 2016 +0200
+
+    change in readme
+
+[33mcommit c28cf83578c1d3430bf0f932f1ee3a4b2517ab06[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Jan 6 21:16:47 2016 +0200
+
+    exclude payment method from trainer workflow
+
+[33mcommit 09c40ae98e59a8a2303a764ccfd187b22d364321[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Jan 6 21:15:00 2016 +0200
+
+    trainer workflow
+
+[33mcommit 27af5702bbf30ec01b201e50f39021550b119028[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Jan 6 21:14:32 2016 +0200
+
+    features
+
+[33mcommit 4790a0074ec1351a9f43affd096ec70ac06273ed[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Jan 6 21:05:00 2016 +0200
+
+    changes in readme
+
+[33mcommit 20214f331ec2e8d75a42546b0a5ed7ee2cba1595[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Jan 6 21:00:21 2016 +0200
+
+    changes in gitignore
+
+[33mcommit ff7332ac0a4f0a00b626809b98e37f74e55364f2[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Jan 6 20:52:53 2016 +0200
+
+    backup and migrate
+
+[33mcommit d8f340a784af06fd9a4dbafd1e07658c50712d0d[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Jan 6 20:06:58 2016 +0200
+
+    EU coocie compliance
+
+[33mcommit ef77bfb822db2db539da050e225e83ada04bd699[m
+Author: Diana Parvanova <diana@parvanova.com>
+Date:   Wed Jan 6 17:23:38 2016 +0200
+
+    First commit

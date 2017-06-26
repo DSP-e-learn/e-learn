@@ -1,0 +1,244 @@
+<?php
+
+
+
+/**
+ * Implements hook_form_alter().
+ */
+function elearn_form_alter(&$form, &$form_state, $form_id) {
+    <o
+if ($form_id == 'course_node_form') {
+        //hide quiz reference field
+	//$form['field_quiz']['und']['#type']= 'hidden'; // select
+        $form['field_quiz']['und']['0']['target_id']['#type']= 'hidden'; //autocompleate
+    }
+
+    if ($form_id == 'quiz_node_form') {
+        $form['remember_settings'] = array('#type' => 'hidden', '#value' => '1');
+        
+        //Certificate fieldgroup
+        hide($form['certificate']);
+        $form['certificate']['map']['manual']['manual'] = array("#type" => 'hidden', "#value" => 46);
+
+        //taking fieldgroup
+        $form['taking']['allow_skipping'] = array( '#type' => 'hidden', '#value' => '0');
+        $form['taking']['allow_jumping'] = array( '#type' => 'hidden', '#value' => '0');
+        $form['taking']['allow_change'] = array( '#type' => 'hidden', '#value' => '0');
+        $form['taking']['allow_change_blank'] = array( '#type' => 'hidden', '#value' => '0');
+        $form['taking']['repeat_until_correct'] = array( '#type' => 'hidden', '#value' => '0');
+        $form['taking']['build_on_last'] = array( '#type' => 'hidden', '#value' => '');
+        $form['taking']['mark_doubtful'] = array( '#type' => 'hidden', '#value' => '0');
+        $form['taking']['show_passed'] = array( '#type' => 'hidden', '#value' => '1');
+        $form['taking']['randomization'] = array( '#type' => 'hidden', '#value' => '0');       
+        $form['taking']['time_limit'] = array('#type' => 'hidden', '#value' => '0');
+        $form['takes'] = array('#type' => 'hidden', '#value' => '3');
+        $form['show_attempt_stats'] = array('#type' => 'hidden', '#value' => '1');        
+        hide($form['taking'] ["multiple_takes"] );
+
+        hide ($form['taking']['review_options']['question'] );
+//        $form['taking']['review_options']['question'] ["#options"]['correct'] = "Whether correct";
+//        $form['taking']['review_options']['question'] ["#options"]['score'] = "Score";
+//        //$form['taking']['review_options']['question'] ["#default_value"]['correct'] = "";
+//        //$form['taking']['review_options']['question'] ["#default_value"]['score'] = "score";
+//
+        $form['taking']['review_options']['#description'] = "Control what feedback appears at the end.";
+        unset ($form['taking']['review_options']['end'] ["#options"]);
+        $form['taking']['review_options']['end'] ["#options"]['quiz_question_view_full'] = "Question: Full content";
+        $form['taking']['review_options']['end'] ["#options"]['attempt'] = "Attempt";
+        $form['taking']['review_options']['end'] ["#options"]['choice'] = "Choices";
+        $form['taking']['review_options']['end'] ["#options"]['correct'] = "Whether correct";
+        $form['taking']['review_options']['end'] ["#options"]['score'] = "Score";
+        
+        //Result feedback fieldgroup
+        hide($form["resultoptions"] );
+        
+        //Pass/Fail options fieldgroup
+        $form['taking']["pass_rate"]=array("#type"=> "textfield", "#title"=>"Passing rate for Quiz (%)", "#default_value"=>$form['summaryoptions']["pass_rate"]["#default_value"], "#description"=>"Passing rate for this Quiz as a percentage score.", "#required"=> false);
+        hide($form['summaryoptions']);
+    
+        //Availability options fieldgroup
+        $form['quiz_always'] = array('#type' => 'hidden', '#value' => '1');
+        hide($form["quiz_availability"] );
+        
+        $form['#after_build'][] = 'elearn_quiz_node_form_after_build';
+    }
+    
+    if ($form_id == 'truefalse_node_form') {
+        hide($form['feedback']);   
+    }
+
+    if ($form_id == 'multichoice_node_form') {
+        hide($form['feedback']);   
+    }
+    
+
+}
+
+// afterbuild function
+function elearn_quiz_node_form_after_build($form) {
+    // We want to hide input formats 
+    // not needed after hide_formats module was enabled
+   // $form['body'][LANGUAGE_NONE][0]['format']['#prefix']= '<div style="display:none;">';
+    //$form['body'][LANGUAGE_NONE][0]['format']['#sufix']= '</div>';   
+    return $form;
+}
+
+/*
+ * Implements hook_entity_presave().
+ */
+//function elearn_entity_presave($entity, $type) {
+//  if ($type === 'node' && isset($entity->field_product)) {
+//    $product_ids = array();
+//    foreach($entity->field_product as $lang => $items) {
+//      foreach($items as $i => $values) {
+//        if(!empty($values['product_id'])) {
+//          $product_ids[] = $values['product_id'];
+//        }
+//      }
+//    }
+//    $products = entity_load('commerce_product', $product_ids);
+//    foreach($products as $id => $product) {
+//      $changed = false;
+//      //Find all translatable fields for the product
+//      $field_instances = field_info_instances('commerce_product', $product->type);
+//      foreach($field_instances as $field_name => $field_instance) {
+//        $field = field_info_field($field_name);
+//        if(!empty($field['translatable'])) {
+//          //Add a version of the field in the product display's language if it doesn't exist already
+//          if(!isset($product->{$field_name}[$entity->language])) {
+//            //Copy over the language-agnostic value.
+//            $product->{$field_name}[$entity->language] = $product->{$field_name}[LANGUAGE_NONE];
+//            $changed = true;
+//          }
+//        }
+//      }
+//      //Save the product.
+//      if($changed) {
+//        entity_save('commerce_product', $product);
+//      }
+//    }
+//  }
+//}
+
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * Alter the Commerce 'Add to Cart' form.
+ */
+function elearn_form_commerce_cart_add_to_cart_form_alter(&$form, &$form_state) {
+  //limit buyers by role
+  global $user;
+  $roles_allowed_to_buy = array(
+    'company',
+    'administrator',
+  );
+  if (!array_intersect($user->roles, $roles_allowed_to_buy)) {
+    // Display a help message.
+    $form['help'] = array(
+      '#markup' => t('You do not have permission to buy this product.'),
+    );
+    // Disable the whole form.
+    $form['#disabled'] = TRUE;
+    // Remove any submit button(s).
+    unset($form['submit']);
+  }
+  
+  //limit cart to only one product
+  $form['#validate'][] = 'elearn_cart_validate';
+
+}
+
+  //limit cart to only one product
+function elearn_cart_validate($form, &$form_state) {
+  $order = commerce_cart_order_load($GLOBALS['user']->uid);
+  if ($order) {
+    $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+    if ($order_wrapper->commerce_line_items->value()) {
+      form_set_error('', t("You can only have one item in your cart. <a href=\"/cart\">View cart</a>"));
+    }
+  }
+}
+
+//alter the price in cart & order
+// do NOT WORK
+function elearn_commerce_cart_line_item_refresh($line_item, $order_wrapper){
+
+    $line_wrapper = entity_metadata_wrapper('commerce_line_item', $line_item);
+
+    $new_price = 100; 
+
+    if(!empty($new_price)){
+        $line_wrapper->commerce_unit_price->amount->set($new_price);
+        $line_wrapper->save();
+    }
+
+}
+
+
+
+function elearn_commerce_payment_order_paid_in_full($transaction) {
+  // No example.
+  //var_dump($transaction); exit;
+}
+
+function elearn_commerce_order_presave($order) {
+  // Find out if our order already has an example_2 line item.
+//  $type_exists = FALSE;
+//  if (!empty($order->commerce_line_items['und'])) {
+//    foreach ($order->commerce_line_items['und'] as $delta => $line_item_entry) {
+//      if ($line_item = commerce_line_item_load($line_item_entry['line_item_id'])) {
+//        if ($line_item->type == 'example_line_item_2') {
+//          $type_exists = TRUE;
+//          break;
+//        }
+//      }
+//    }
+//  }
+
+  // If our line item is not yet in the order and the order has an ID,
+  // create a line item to add to the order.
+  if (!$type_exists && $order->order_id > 0) {
+    $line_item = line_item_example_line_item_2_new($order->order_id);
+    commerce_line_item_save($line_item);
+    $order->commerce_line_items['und'][] = array('line_item_id' => $line_item->line_item_id);
+  }
+}
+
+function elearn_line_item_2_new($order_id = 0) {
+  $type = 'example_line_item_2';
+
+  // Create the new line item.
+  $line_item = entity_create('commerce_line_item', array(
+    'type' => $type, 
+    'order_id' => $order_id, 
+    'quantity' => 1,
+  ));
+
+  // For this example, we'll use a price of USD $5.00 for the "surcharge".
+  $amount = variable_get('line_item_example_line_item_2_amount', 500);
+  $currency_code = variable_get('line_item_example_line_item_2_currency', 'USD');
+
+  $line_item->commerce_unit_price = array('und' => array(
+      '0' => array(
+        'amount' => $amount,
+        'currency_code' => $currency_code,
+      ),
+    ));
+
+  $line_item_wrapper = entity_metadata_wrapper('commerce_line_item', $line_item);
+
+  if (!is_null($line_item_wrapper->commerce_unit_price->value())) {
+    // Add the base price to the components array.
+    if (!commerce_price_component_load($line_item_wrapper->commerce_unit_price->value(), 'base_price')) {
+      $line_item_wrapper->commerce_unit_price->data = commerce_price_component_add(
+        $line_item_wrapper->commerce_unit_price->value(), 
+        'base_price', 
+        $line_item_wrapper->commerce_unit_price->value(), 
+        TRUE
+      );
+    }
+  }
+  // Return the line item.
+  return $line_item;
+}

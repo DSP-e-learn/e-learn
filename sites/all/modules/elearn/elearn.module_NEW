@@ -1,0 +1,1305 @@
+<?php
+
+
+
+/**
+ * Implements hook_form_alter().
+ */
+function elearn_form_alter(&$form, &$form_state, $form_id) {
+//var_dump($form_id);
+  global $user;
+    if ($form_id == 'course_node_form') {
+        //hide quiz reference field
+	//$form['field_quiz']['und']['#type']= 'hidden'; // select
+        $form['field_quiz']['und']['0']['target_id']['#type']= 'hidden'; //autocompleate
+    }
+
+    if ($form_id == 'quiz_node_form') {
+        $form['remember_settings'] = array('#type' => 'hidden', '#value' => '1');
+        
+        //Certificate fieldgroup
+        hide($form['certificate']);
+        $form['certificate']['map']['manual']['manual'] = array("#type" => 'hidden', "#value" => 46);
+
+        //taking fieldgroup
+        $form['taking']['allow_skipping'] = array( '#type' => 'hidden', '#value' => '0');
+        $form['taking']['allow_jumping'] = array( '#type' => 'hidden', '#value' => '0');
+        $form['taking']['allow_change'] = array( '#type' => 'hidden', '#value' => '0');
+        $form['taking']['allow_change_blank'] = array( '#type' => 'hidden', '#value' => '0');
+        $form['taking']['repeat_until_correct'] = array( '#type' => 'hidden', '#value' => '0');
+        $form['taking']['build_on_last'] = array( '#type' => 'hidden', '#value' => '');
+        $form['taking']['mark_doubtful'] = array( '#type' => 'hidden', '#value' => '0');
+        $form['taking']['show_passed'] = array( '#type' => 'hidden', '#value' => '1');
+        $form['taking']['randomization'] = array( '#type' => 'hidden', '#value' => '0');       
+        $form['taking']['time_limit'] = array('#type' => 'hidden', '#value' => '0');
+        $form['takes'] = array('#type' => 'hidden', '#value' => '3');
+        $form['show_attempt_stats'] = array('#type' => 'hidden', '#value' => '1');        
+        hide($form['taking'] ["multiple_takes"] );
+
+        hide ($form['taking']['review_options']['question'] );
+//        $form['taking']['review_options']['question'] ["#options"]['correct'] = "Whether correct";
+//        $form['taking']['review_options']['question'] ["#options"]['score'] = "Score";
+//        //$form['taking']['review_options']['question'] ["#default_value"]['correct'] = "";
+//        //$form['taking']['review_options']['question'] ["#default_value"]['score'] = "score";
+//
+        $form['taking']['review_options']['#description'] = "Control what feedback appears at the end.";
+        unset ($form['taking']['review_options']['end'] ["#options"]);
+        $form['taking']['review_options']['end'] ["#options"]['quiz_question_view_full'] = "Question: Full content";
+        $form['taking']['review_options']['end'] ["#options"]['attempt'] = "Attempt";
+        $form['taking']['review_options']['end'] ["#options"]['choice'] = "Choices";
+        $form['taking']['review_options']['end'] ["#options"]['correct'] = "Whether correct";
+        $form['taking']['review_options']['end'] ["#options"]['score'] = "Score";
+        
+        //Result feedback fieldgroup
+        hide($form["resultoptions"] );
+        
+        //Pass/Fail options fieldgroup
+        $form['taking']["pass_rate"]=array("#type"=> "textfield", "#title"=>"Passing rate for Quiz (%)", "#default_value"=>$form['summaryoptions']["pass_rate"]["#default_value"], "#description"=>"Passing rate for this Quiz as a percentage score.", "#required"=> false);
+        hide($form['summaryoptions']);
+    
+        //Availability options fieldgroup
+        $form['quiz_always'] = array('#type' => 'hidden', '#value' => '1');
+        hide($form["quiz_availability"] );
+        
+        $form['#after_build'][] = 'elearn_quiz_node_form_after_build';
+    }
+    
+    if ($form_id == 'truefalse_node_form') {
+        hide($form['feedback']);   
+    }
+
+    if ($form_id == 'multichoice_node_form') {
+        hide($form['feedback']);   
+    }
+    
+    if (strstr($form_id, 'commerce_cart_add_to_cart_form')) {
+      $form['warning'] = array(
+        '#markup' => t('<br /><span class="price-note"> Please note that the price will be altered according to number of trainees entered</span>'),
+        '#weight' => 100
+      );
+    }
+    if ($form_id == 'course_node_form') {
+      $node = $form_state['node'];
+      if (isset($node->nid)) {
+          //prevent deleting a course
+          unset($form['actions']['delete']);
+          //disable language field on editing course
+          $form['language']['#disabled'] = TRUE;
+      }
+      //allow trainers to publish/unpublish their courses but without promote and sticky
+      if(in_array('trainer', $user->roles)) {
+        if ($form['options']['#access'] == FALSE) {
+          $form['options']['#access'] = TRUE;
+        }
+        unset($form['options']['promote']);
+        unset($form['options']['sticky']);
+      }
+    }
+    if ($form_id == 'user_register_form' || $form_id =="user_profile_form") {
+      $form['#attached']['js'] = array(
+        drupal_get_path('module', 'elearn') . '/populate-full-name.js',
+      );
+      //$form['profile_trainer']['field_full_name']['und']['0']['value']['#default_value']  = "ddd";
+    }
+    
+}
+
+//ensure our hook runs the last
+function elearn_module_implements_alter(&$implementations, $hook) {
+    if ($hook == 'form_alter') {
+        $module = 'elearn';
+        // store
+        $group = array($module => $implementations[$module]);
+        // unset
+        unset($implementations[$module]);
+        // add to the end
+        $implementations = $implementations + $group;
+    }
+}
+
+
+function elearn_node_update($node){
+  global $user;
+  //handle publish/unpublish of Course to publish/unpublish corresponding Product Display
+  //as rules doesn't do publishing because of permission issue
+  //all other fields are updated from rule "Edit course Holder, Product and PD on Course change"
+  if($node->type == "course"){
+    //find course HOLDER
+    $query = new EntityFieldQuery();
+    $query->entityCondition('entity_type', 'node');
+    $query->fieldCondition('field_reference_to_course', 'target_id', $node->nid);
+    $result = $query->execute();
+    $course_holders = (isset($result['node'])) ? $result['node'] : array();
+    
+    //we count on that the query returns only one row
+    foreach($course_holders as $holder_id => $holder){
+      //find course PRODUCT
+      $query = new EntityFieldQuery();
+      $query->entityCondition('entity_type', 'commerce_product');
+      $query->fieldCondition('field_course_holder_reference', 'target_id', $holder_id);
+      $result = $query->execute();
+      $products = $result['commerce_product'];  
+      foreach($products as $product_id => $product){
+        //find course PRODUCT DISPLAY
+        $pd_id = elearn_get_display_node_by_product_id($product_id, 'field_product');
+        $pd = node_load($pd_id);
+        $pd->status = $node->status;
+        node_save($pd);
+      } 
+    }
+    
+  }
+  
+  //Create Course HOLDER, PRODUCT and PD on creating a quiz(course)
+  if($node->type == "quiz"){
+    $course_id =        elearn_get_node_referensing_node($node->nid, 'field_quiz', 'node'  );
+    $course = node_load($course_id);
+    $course_wrapper = entity_metadata_wrapper('node', $course);
+
+    $course_holder_id =  elearn_get_node_referensing_node($course_id, 'field_reference_to_course', 'node'  );
+    $product_id =        elearn_get_node_referensing_node($course_holder_id, 'field_course_holder_reference', 'commerce_product'  );
+    $product_diplay_id = elearn_get_display_node_by_product_id($product_id, 'field_product');
+    
+    //create course HOLDER if it doesn't exist
+    if(!$course_holder_id ){
+      $values = array(
+        'type' => 'course_holder',
+        'uid' => $user->uid,
+        'status' => 1,
+        'comment' => 0,
+        'promote' => 0,
+      );
+      $entity = entity_create('node', $values);
+      $ewrapper = entity_metadata_wrapper('node', $entity);
+      $ewrapper->title->set($course->title);
+      $ewrapper->field_reference_to_course->set(intval($course_id));
+      $ewrapper->field_reference_to_quiz->set(intval($node->nid));
+      $ewrapper->language->set($course->language);
+      $ewrapper->save();  
+      $course_holder_id = $ewrapper->nid->value();  
+      
+//      echo "after create course HOLDER";
+//      var_dump($course_id,$course_holder_id, $product_id , $product_diplay_id);
+
+    }
+ 
+    //create course PRODUCT if it doesn't exist
+    if(!$product_id ){
+      $cp = commerce_product_new('product');
+      $cp->is_new = TRUE;
+      $cp->revision_id = NULL;
+      $cp->uid = $user->uid;;
+      $cp->status = 1;
+      $cp->created = $cp->changed = time();
+      $cp->sku = $course->title . " - " . $course->nid;
+      $cp->title = $course->title;
+      $cp->language = $course->language;
+      $price = field_get_items('node', $course, 'field_base_price_of_the_course');
+      $cp->commerce_price = array(LANGUAGE_NONE => array( 0 => array(
+       'amount' => $price[0]['amount'],
+       'currency_code' => 'GBP',
+      )));
+      //$product[retail_price];
+      
+      $form_state = array();
+      $form = array();
+      $form_state['values']['field_course_reference'] = array(LANGUAGE_NONE => array(0 => array('target_id' => $course_id)));      
+      $form_state['values']['field_course_holder_reference'] = array(LANGUAGE_NONE => array(0 => array('target_id' => $course_holder_id)));
+      $form['#parents'] = array();
+      field_attach_submit('commerce_product', $cp, $form, $form_state);
+      commerce_product_save($cp);  
+      $product_id = $cp->product_id;
+//      echo "after create course PRODUCT";
+//      var_dump($course_id,$course_holder_id, $product_id , $product_diplay_id);
+
+    }
+ 
+    //create course PRODUCT DISPLAY if it doesn't exist
+    if(!$product_diplay_id ){
+      $values = array(
+        'type' => 'course_product_display',
+        'uid' => $user->uid,
+        'status' => $course->status,
+        'comment' => 0,
+        'promote' => 0,
+      );
+      $entity = entity_create('node', $values);
+      $ewrapper = entity_metadata_wrapper('node', $entity);
+      $ewrapper->title->set($course->title);
+      $ewrapper->field_product->set(intval($product_id));
+      $ewrapper->language->set($course->language);
+      $category = field_get_items('node', $course, 'field_category');
+      $ewrapper->field_pd_category->set(intval($category[0]['tid']));
+      $short_description = field_get_items('node', $course, 'field_course_short_description');
+      $ewrapper->field_course_short_description->set($short_description['0']['value']);
+      $ewrapper->save(); 
+    }
+  }
+}
+
+
+//get a node that referenses a node_id
+function elearn_get_node_referensing_node($node_id, $field_name, $entity_type  ) {
+  $query = new EntityFieldQuery;
+  $result = $query->entityCondition('entity_type', $entity_type, '=')
+    ->fieldCondition($field_name, 'target_id', $node_id, '=')
+    ->range(0, 1)    
+    ->addTag('DANGEROUS_ACCESS_CHECK_OPT_OUT')
+    ->execute();
+
+  if (empty($result[$entity_type])) {
+    return FALSE;
+  }
+  //var_dump($result[$entity_type]);
+  if($entity_type == 'commerce_product')return reset($result[$entity_type])->product_id;
+  return reset($result[$entity_type])->nid;
+}
+
+
+function elearn_get_display_node_by_product_id($product_id, $product_field_name = 'product_reference') {
+  $query = new EntityFieldQuery;
+  $result = $query->entityCondition('entity_type', 'node', '=')
+    ->fieldCondition($product_field_name, 'product_id', $product_id, '=')
+    ->range(0, 1)    
+    ->addTag('DANGEROUS_ACCESS_CHECK_OPT_OUT')
+    ->execute();
+
+  if (empty($result['node'])) {
+    return FALSE;
+  }
+
+  return reset($result['node'])->nid;
+}
+
+function elearn_node_insert($node){
+  if($node->type == "course_product_display"){
+    //$product = commerce_product_load($node->field_product);
+   // var_dump($node); exit;
+  }
+}
+
+// afterbuild function
+function elearn_quiz_node_form_after_build($form) {
+    // We want to hide input formats 
+    // not needed after hide_formats module was enabled
+   // $form['body'][LANGUAGE_NONE][0]['format']['#prefix']= '<div style="display:none;">';
+    //$form['body'][LANGUAGE_NONE][0]['format']['#sufix']= '</div>';   
+    return $form;
+}
+
+/*
+ * Implements hook_entity_presave().
+ */
+//function elearn_entity_presave($entity, $type) {
+//  if ($type === 'node' && isset($entity->field_product)) {
+//    $product_ids = array();
+//    foreach($entity->field_product as $lang => $items) {
+//      foreach($items as $i => $values) {
+//        if(!empty($values['product_id'])) {
+//          $product_ids[] = $values['product_id'];
+//        }
+//      }
+//    }
+//    $products = entity_load('commerce_product', $product_ids);
+//    foreach($products as $id => $product) {
+//      $changed = false;
+//      //Find all translatable fields for the product
+//      $field_instances = field_info_instances('commerce_product', $product->type);
+//      foreach($field_instances as $field_name => $field_instance) {
+//        $field = field_info_field($field_name);
+//        if(!empty($field['translatable'])) {
+//          //Add a version of the field in the product display's language if it doesn't exist already
+//          if(!isset($product->{$field_name}[$entity->language])) {
+//            //Copy over the language-agnostic value.
+//            $product->{$field_name}[$entity->language] = $product->{$field_name}[LANGUAGE_NONE];
+//            $changed = true;
+//          }
+//        }
+//      }
+//      //Save the product.
+//      if($changed) {
+//        entity_save('commerce_product', $product);
+//      }
+//    }
+//  }
+//}
+
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * Alter the Commerce 'Add to Cart' form.
+ */
+function elearn_form_commerce_cart_add_to_cart_form_alter(&$form, &$form_state) {
+  //limit buyers by role
+  global $user;
+  $roles_allowed_to_buy = array(
+    'company',
+    'administrator',
+  );
+  if (!array_intersect($user->roles, $roles_allowed_to_buy)) {
+    // Display a help message.
+    $form['help'] = array(
+      '#markup' => t("<div style=\"color:#c00\">You do not have permission to buy this product. Please login with your company/'s account</div>"),
+    );
+    // Disable the whole form.
+    $form['#disabled'] = TRUE;
+    // Remove any submit button(s).
+    unset($form['submit']);
+  }
+  
+  //limit cart to only one product
+  $form['#validate'][] = 'elearn_cart_validate';
+
+}
+
+
+/**
+ * Implements hook_commerce_price_formatted_components_alter().
+ *
+ * Alters somes text at the checkout form
+ *
+ * @param $components
+ * @param $price
+ * @param $entity
+ */
+function elearn_commerce_price_formatted_components_alter(&$components, $price, $entity) {
+  $components['base_price']['title'] = t('Fixed minimum price');
+  $components['commerce_price_formatted_amount']['title'] = t('Total price (Fixed + Additional)');
+
+  if($entity->type == 'commerce_order'){
+    $components['additional_course_price_component']['title'] = t('Additional price');
+    $components['commerce_price_formatted_amount']['title'] = t('Total order price');
+
+  }
+}
+
+
+  //limit cart to only one product
+function elearn_cart_validate($form, &$form_state) {
+  $order = commerce_cart_order_load($GLOBALS['user']->uid);
+  if ($order) {
+    $order_wrapper = entity_metadata_wrapper('commerce_order', $order);
+    if ($order_wrapper->commerce_line_items->value()) {
+      form_set_error('', t("You can only have one Course in your cart. <a href=\"/cart\">View cart</a>"));
+    }
+  }
+}
+
+
+
+function elearn_commerce_price_component_type_info() {
+  return array(
+    'additional_course_price_component' => array(
+      'title' => t('Additional price based on number of attendies'), 
+      'display_title' => t('Additional price (for number of trainees greater than one)'), 
+      'weight' => 100,
+    ),
+  );
+}
+
+
+/*
+//alter the price in cart & order
+function elearn_commerce_cart_line_item_refresh($line_item, $order_wrapper) {//var_dump($line_item);
+  if ($line_item->type == "product") {
+    $price = 100 * $line_item->quantity; //1 dollar
+    $line_item->commerce_unit_price[LANGUAGE_NONE]['0']['amount'] += $price;//to remove the line item set it's unit_price = null
+    $line_item->commerce_unit_price[LANGUAGE_NONE]['0']['data']['components']['0']['price']['amount'] = $price; //alter the base_price component
+  }
+}
+
+
+//alter the price in cart & order
+// do NOT WORK
+//function elearn_commerce_cart_line_item_refresh($line_item, $order_wrapper){
+//
+//    $line_wrapper = entity_metadata_wrapper('commerce_line_item', $line_item);
+//
+//    $new_price = 100; 
+//
+//    if(!empty($new_price)){
+//        $line_wrapper->commerce_unit_price->amount->set($new_price);
+//        $line_wrapper->save();
+//    }
+//
+//}
+
+
+
+/*
+function elearn_commerce_payment_order_paid_in_full($transaction) {
+  // No example.
+  //var_dump($transaction); exit;
+}
+
+function elearn_commerce_order_presave($order) {
+  // Find out if our order already has an example_2 line item.
+  $type_exists = FALSE;
+  //var_dump($order->commerce_line_items['und']);exit;
+  if (!empty($order->commerce_line_items['und'])) {
+    foreach ($order->commerce_line_items['und'] as $delta => $line_item_entry) {//var_dump($line_item_entry);exit;
+      if ($line_item = commerce_line_item_load($line_item_entry['line_item_id'])) {
+        if ($line_item->type == 'example_line_item_2') {
+          $type_exists = TRUE;
+          break;
+        }
+      }
+    }
+  }
+
+  // If our line item is not yet in the order and the order has an ID,
+  // create a line item to add to the order.
+  if (!$type_exists && $order->order_id > 0) {
+    $line_item = elearn_line_item_2_new($order->order_id);
+    commerce_line_item_save($line_item);
+    $order->commerce_line_items['und'][] = array('line_item_id' => $line_item->line_item_id);
+  }
+}
+
+function elearn_line_item_2_new($order_id = 0) {
+  $type = 'example_line_item_2';
+
+  // Create the new line item.
+  $line_item = entity_create('commerce_line_item', array(
+    'type' => $type, 
+    'order_id' => $order_id, 
+    'quantity' => 1,
+  ));
+
+  // For this example, we'll use a price of USD $5.00 for the "surcharge".
+  $amount = variable_get('line_item_example_line_item_2_amount', 500);
+  var_dump($amount); exit;
+  $currency_code = variable_get('line_item_example_line_item_2_currency', 'USD');
+
+  $line_item->commerce_unit_price = array('und' => array(
+      '0' => array(
+        'amount' => $amount,
+        'currency_code' => $currency_code,
+      ),
+    ));
+
+  $line_item_wrapper = entity_metadata_wrapper('commerce_line_item', $line_item);
+
+  if (!is_null($line_item_wrapper->commerce_unit_price->value())) {
+    // Add the base price to the components array.
+    if (!commerce_price_component_load($line_item_wrapper->commerce_unit_price->value(), 'base_price')) {
+      $line_item_wrapper->commerce_unit_price->data = commerce_price_component_add(
+        $line_item_wrapper->commerce_unit_price->value(), 
+        'base_price', 
+        $line_item_wrapper->commerce_unit_price->value(), 
+        TRUE
+      );
+    }
+  }
+  // Return the line item.
+  return $line_item;
+}
+*/
+
+
+function elearn_commerce_payment_order_paid_in_full($order, $transaction) {
+  commerce_order_status_update($order, 'completed');
+  $product_ids = array();
+  foreach (entity_metadata_wrapper('commerce_order', $order)->commerce_line_items as $delta => $line_item_wrapper) {
+    if (in_array($line_item_wrapper->type->value(), commerce_product_line_item_types())) {
+      $product_ids[] = $line_item_wrapper->commerce_product->raw();
+      $number_attendies[] = $line_item_wrapper->field_number_of_attendies->value();
+    }
+  }
+  $product_id = $product_ids[0]; // we allow only one product in cart so we are sure that the line item of type product is only one
+  $number_attendies = $number_attendies[0];
+  $product_wrapper = entity_metadata_wrapper('commerce_product', $product_id);
+  $course_holder = $product_wrapper->field_course_holder_reference->value();
+//  var_dump($course_holder->field_reference_to_course['und']['0']['target_id']);exit;
+  $nid = db_insert('course_instance') // Table name no longer needs {}
+    ->fields(array(
+      'order_id' => $order->order_id,
+      'uid' => $order->uid,
+      'course_holder_id' => $course_holder->nid,
+     // 'course_nid' => $course_holder->field_reference_to_course['und']['0']['target_id'],
+     // 'quiz_nid' => $course_holder->field_reference_to_quiz['und']['0']['target_id'],
+
+      'numb_attendies' => $number_attendies,
+      'created' => REQUEST_TIME,
+  ))
+  ->execute();
+  
+  //give access to Company to Course holder, Course and Quiz  - without scheduling revoking
+  $access_granted = rules_invoke_component('rules_comp_grant_access_to_course_holder_course_and_quiz_2', $course_holder, $order->uid);
+}
+
+
+/**
+* Implementing hook_menu_alter
+* Restrict MENU TABS access
+*/
+function elearn_menu_alter(&$items) {// echo "dddd"; exit;
+    $items['user/%views_arg/orders']['access callback'] = '_user_orders_accesscheck';
+    $items['node/%/quiz-results/%/view']['access callback'] = '_user_quiz_results_accesscheck';
+    $items['node/%/quiz-results/%/view']['access arguments'] = array(3);
+
+}
+
+/**
+ * Callback to remove My Orders tab from profile page of users with role = user or trainer
+ */
+function _user_orders_accesscheck(){
+  global $user;
+  return !(in_array('user', $user->roles) || in_array('trainer', $user->roles)) ; 
+}
+
+
+/**
+ * Callback to allow company that enrolled a user to see his quiz results
+ * we just add another condition to quiz_access_my_result function
+ */
+function _user_quiz_results_accesscheck($result_id){
+  global $user;
+
+  // Check if the quiz taking has been completed.
+  if ($quiz_result = quiz_result_load($result_id)) {
+    $node = node_load($quiz_result->nid, $quiz_result->vid);
+
+    if (_his_user_bought_quiz($result_id) || quiz_access_to_score($node->uid) || ($quiz_result->time_end > 0 && $quiz_result->uid == $user->uid)) {
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+
+/**
+ * Helper function to determine if a user has bought a course that referenses a quiz for a given quiz_result_id.
+ *
+ * 
+ * @param type $result_id/
+ */
+function _his_user_bought_quiz($result_id){
+    global $user;
+
+    $quiz_result = quiz_result_load($result_id);
+    $course_holder_id = elearn_get_node_referensing_node($quiz_result->nid, 'field_reference_to_quiz', 'node'  );
+    $course_instanse = db_query("select * from {course_instance} where uid = :uid AND course_holder_id = :course_holder_id", array(":uid" => $user->uid, ":course_holder_id" => $course_holder_id))->fetchObject();
+    if($course_instanse){    
+      return true;
+    }
+    return false;
+}
+
+
+function elearn_menu(){
+//for COMPANY
+  $items['user/%/courses-i-bought'] = array(
+    'title' => 'My bought courses',
+    'page callback' => 'elearn_my_bought_courses',
+    'page arguments' =>array(1),
+    'access callback' => 'elearn_my_bought_courses_access',
+    'access arguments' => array(1),
+    'type' =>  MENU_LOCAL_TASK,
+     'weight' =>100
+  );
+  $items['course/%/activate'] = array(
+    'title' => 'Activate course',
+    'page callback' => 'drupal_get_form',
+    'page arguments' =>array('elearn_course_activate_form', 1),
+    'access callback' => 'elearn_course_activate_access',
+    'access arguments' => array(1),
+    'type' => MENU_NORMAL_ITEM,
+  );
+  $items['course/%/activity'] = array(
+    'title' => '',
+    'page callback' => 'elearn_course_activity',
+    'page arguments' =>array(1),
+    'access callback' => 'elearn_course_activate_access',
+    'access arguments' => array(1),
+    'type' => MENU_NORMAL_ITEM,
+  );
+//for TRAINER
+  $items['user/%/courses-i-sold'] = array(
+    'title' => 'My sold courses',
+    'page callback' => 'elearn_my_sold_courses',
+    'page arguments' =>array(1),
+    'access callback' => 'elearn_my_sold_courses_access',
+    'access arguments' => array(1),
+    'type' =>  MENU_LOCAL_TASK,
+     'weight' =>100
+  );
+  return $items;
+}
+
+
+//only COMPANY that bought course has the right to activate it
+function elearn_course_activate_access($ciid){
+  global $user;
+  $uid = db_query("SELECT uid FROM {course_instance} WHERE ciid = :ciid", array(":ciid" => $ciid))->fetchField();
+  if ($user->uid == $uid)  return TRUE;
+  else return FALSE; 
+}
+
+
+//every COMPANY can see only the courses it has bought
+function elearn_my_bought_courses_access($uid){
+  global $user;
+  if ($user->uid == $uid && !in_array("user", $user->roles) &&  !in_array("trainer", $user->roles)){  return TRUE;}
+  else {return FALSE;}
+}
+
+//every TRAINER can see only his own  courses
+function elearn_my_sold_courses_access($uid){
+  global $user;
+  if ($user->uid == $uid && in_array("trainer", $user->roles) ){  return TRUE;}
+  else {return FALSE;}
+}
+
+
+//for Company
+function elearn_my_bought_courses($uid){
+  $output = "<h5 class=\"error\">" .t('Atention: A course can be activated ONLY during an ONE YEAR period after the purchase.')."</h5>";
+  $header = array(
+    array('data' => t('Order number'), 'field' => 'order_id', 'sort' => 'asc'),
+    array('data' => t('Course title'), 'field' => 'created'),
+   // array('data' => t('Trainees'), 'field' => 'numb_attendies'),
+    array('data' => t('Date of buying'), 'field' => 'created'),
+    array('data' => t('Start date'), 'field' => 'activated'),
+    array('data' => t('End date'), 'field' => 'ended'),
+  );
+  $header['operations'] = array('data' => t('Course status'));
+ // $destination = drupal_get_destination();
+
+  $query = db_select('course_instance', 'c')->extend('TableSort')->extend('PagerDefault')->limit(20)->orderByHeader($header);
+  $query->fields('c', array('ciid', 'order_id', 'course_holder_id', 'numb_attendies', 'created', 'activated', 'ended'));
+  $query->condition('c.uid', $uid, '=');  
+  $result = $query->execute();
+  $rows = array();
+
+  foreach ($result as $row) {
+    $curse_holder = node_load($row->course_holder_id);
+    $actvated = $row->activated ? format_date($row->activated,'short') : t("not activated");
+    $ended = $row->ended ? format_date($row->ended,'short') : t("not ended");
+    $title = $curse_holder ? $curse_holder->title : "";
+    $rows[$row->order_id] = array(
+      "data"=>array(
+          l($row->order_id, drupal_get_path_alias('user/'. $curse_holder->uid.'/orders/'.$row->order_id)),  
+          l($title, drupal_get_path_alias('node/'. $curse_holder->nid)), 
+         // $row->numb_attendies, 
+          format_date($row->created,'short'), 
+          $actvated, 
+          $ended
+        ),
+      "class"=> array("class" => "course-instance-". $row->order_id),
+    );
+    $operations = array();
+    //if the course is not activated and one year period since purchase is not passed 
+    // - add link to activating the course
+    $days_since_creation = (time() - $row->created)/(60*60*24); 
+    if (!$row->activated && $days_since_creation < 366){
+      
+      //var_dump($time_since_creation); exit;
+      $destination = drupal_get_destination();
+      $operations['activate'] = array(
+        'title' => t('Activate'),
+        'href' => 'course/' . $row->ciid . '/activate/' ,
+        'query' => $destination,
+      );
+    }
+    if($row->activated){
+      $destination = drupal_get_destination();
+      $operations['view_activity'] = array(
+        'title' => t('View activity'),
+        'href' => 'course/' . $row->ciid . '/activity/' ,
+      );
+    }
+    if( (!$row->activated && $days_since_creation > 366) || ($row->activated && $row->ended < time()) ){
+      $destination = drupal_get_destination();
+      $operations['expired'] = array(
+        'title' => t('Expired'),
+       // 'href' => 'course/' . $row->ciid . '/activity/' ,
+      );
+    }
+    // Render an unordered list of operations links.
+      $rows[$row->order_id]["data"]['operations'] = array(
+        'data' => array(
+          '#theme' => 'links__node_operations',
+          '#links' => $operations,
+          '#attributes' => array('class' => array('links', 'inline')),
+        ),
+      );
+  }
+
+  $output .= theme_table(array(
+    'header' => $header,
+    'rows' => $rows,
+    'attributes' => array(),
+    'caption' => "20 courses listed per page",
+    'options' => array(),
+    'colgroups' => array(),
+    'sticky' => false,
+    'empty' => "No courses bought yet"
+      )
+  );
+  $output .= theme(
+      'pager', array('tags' => array() ) );
+  return $output;
+}
+
+
+//for Trainer
+function elearn_my_sold_courses($uid){
+  //$output = "<h5 class=\"error\">" .t('Some text here')."</h5>";
+  $header = array(
+    array('data' => t('Order number'), 'field' => 'order_id', 'sort' => 'asc'),
+    array('data' => t('Order date'), 'field' => 'created'),
+    array('data' => t('Course title'), 'field' => 'created'),
+    array('data' => t('Trainees'), 'field' => 'numb_attendies'),
+    array('data' => t('Start date'), 'field' => 'activated'),
+    array('data' => t('End date'), 'field' => 'ended'),
+    array('data' => t('Course status')),
+  );
+  //$header['operations'] = array('data' => t('Course status'));
+ // $destination = drupal_get_destination();
+
+  $query = db_select('course_instance', 'c')->extend('TableSort')->extend('PagerDefault')->limit(20)->orderByHeader($header);
+  $query->fields('c', array('ciid', 'order_id', 'course_holder_id', 'numb_attendies', 'created', 'activated', 'ended'));
+  //$query->condition('c.uid', $uid, '=');  
+  $result = $query->execute();
+  $rows = array();
+
+  foreach ($result as $row) {
+    $curse_holder = node_load($row->course_holder_id);
+    $actvated = $row->activated ? format_date($row->activated,'short') : t("not activated");
+    $ended = $row->ended ? format_date($row->ended,'short') : t("not ended");
+    $title = $curse_holder ? $curse_holder->title : "";
+    $course_status = "dddd";
+    $rows[$row->order_id] = array(
+      "data"=>array(
+          l($row->order_id, drupal_get_path_alias('user/'. $curse_holder->uid.'/orders/'.$row->order_id)),  
+          format_date($row->created,'short'), 
+
+          l($title, drupal_get_path_alias('node/'. $curse_holder->nid)), 
+          $row->numb_attendies, 
+          $actvated, 
+          $ended,
+          $course_status
+        ),
+      "class"=> array("class" => "course-instance-". $row->order_id),
+    );
+    $operations = array();
+    //if the course is not activated and one year period since purchase is not passed 
+    // - add link to activating the course
+    $days_since_creation = (time() - $row->created)/(60*60*24); 
+    if (!$row->activated && $days_since_creation < 366){
+      
+      //var_dump($time_since_creation); exit;
+      $destination = drupal_get_destination();
+      $operations['activate'] = array(
+        'title' => t('Activate'),
+        'href' => 'course/' . $row->ciid . '/activate/' ,
+        'query' => $destination,
+      );
+    }
+    if($row->activated){
+      $destination = drupal_get_destination();
+      $operations['view_activity'] = array(
+        'title' => t('View activity'),
+        'href' => 'course/' . $row->ciid . '/activity/' ,
+      );
+    }
+    if( (!$row->activated && $days_since_creation > 366) || ($row->activated && $row->ended < time()) ){
+      $destination = drupal_get_destination();
+      $operations['expired'] = array(
+        'title' => t('Expired'),
+       // 'href' => 'course/' . $row->ciid . '/activity/' ,
+      );
+    }
+    // Render an unordered list of operations links.
+//      $rows[$row->order_id]["data"]['operations'] = array(
+//        'data' => array(
+//          '#theme' => 'links__node_operations',
+//          '#links' => $operations,
+//          '#attributes' => array('class' => array('links', 'inline')),
+//        ),
+//      );
+  }
+
+  $output .= theme_table(array(
+    'header' => $header,
+    'rows' => $rows,
+    'attributes' => array(),
+    'caption' => "20 courses listed per page",
+    'options' => array(),
+    'colgroups' => array(),
+    'sticky' => false,
+    'empty' => "No courses sold yet"
+      )
+  );
+  $output .= theme(
+      'pager', array('tags' => array() ) );
+  return $output;
+}
+
+
+
+function elearn_course_activity($ciid){
+  global $user;
+  $course_instanse = db_query("select * from {course_instance} where ciid = :ciid", array(":ciid" => $ciid))->fetchObject();
+  if($course_instanse->uid != $user->uid){    
+    drupal_set_message(t("Error viewing course activity."), 'error'); 
+    return false;
+  }
+  $course_holder_id = $course_instanse->course_holder_id;
+  $course_holder = node_load($course_holder_id);
+  $quiz_nid = $course_holder->field_reference_to_quiz['und'][0]['target_id'];
+
+  $output = "<h3>". $course_holder->title . t(" - course activity"). "</h3>";
+  $output .= "<h5>" .t("Activation date: ") . format_date($course_instanse->activated,'short') . "</h5>";
+  $output .= "<h5>" .t("End date: ") . format_date($course_instanse->ended,'short') . "</h5>";
+  $output .= "<h5>" .t("Order: ") . l(t('order No') . $course_instanse->order_id, "user/$user->uid/orders/$course_instanse->order_id") . "</h5>";
+
+
+  $header = array(
+    array('data' => t('User'), 'field' => 'uid'),
+    array('data' => t('User email'), 'field' => 'uid', 'sort' => 'asc'),
+    array('data' => t('First accessed'), 'field' => 'first_accessed'),
+    array('data' => t('Last accessed'), 'field' => 'last_accessed'),
+    array('data' => t('Best result(%)')),
+    array('data' => t('Is evaluated')),
+
+  );
+  $header['operations'] = array('data' => t('Operations'));
+ // $destination = drupal_get_destination();
+
+  $query = db_select('course_instance_enrolled', 'c')->distinct()->extend('TableSort')->extend('PagerDefault')->limit(20)->orderByHeader($header);
+  $query->fields('c', array('ciid', 'uid', 'course_holder_id','first_accessed', 'last_accessed', 'result_id'));
+  $query->condition('c.ciid', $ciid, '=');  //var_dump($query->__toString()); exit;
+  $result = $query->execute();
+  $rows = array();
+
+  foreach ($result as $row) {
+    $user_enrolled = user_load($row->uid);
+    $user_name = $user_enrolled->name;
+    $user_email = $user_enrolled->mail;
+    
+    $first_accessed = $row->first_accessed ? format_date($row->first_accessed,'short') : t("not accessed");
+    $last_accessed = $row->last_accessed ? format_date($row->last_accessed,'short') : t("");
+    $quiz_result = db_query("SELECT * FROM {quiz_node_results} WHERE nid = :nid AND uid = :uid ORDER BY score DESC LIMIT 1", array(":nid" => $quiz_nid, ':uid' =>$row->uid))->fetchObject();
+
+    $score = (isset($quiz_result->score)) ? $quiz_result->score : '';
+    $is_evaluated = (isset($quiz_result->is_evaluated)) ? t("yes") : t('no');
+    $rows[$row->uid] = array(
+      "data"=>array(
+          $user_name, $user_email, $first_accessed, $last_accessed, $score, $is_evaluated
+        ),
+      "class"=> array("class" => "course-enrolled-". $row->uid),
+    );  
+    
+    $operations = array();
+    if ($score){
+      $destination = drupal_get_destination();
+      $operations['view_results'] = array(
+        'title' => t('View best result'),
+        'href' => 'node/' . $quiz_nid . '/quiz-results/'. $quiz_result->result_id ."/view" ,
+        //'query' => $destination,
+      );
+    }
+    // Render an unordered list of operations links.
+    $rows[$row->uid]["data"]['operations'] = array(
+      'data' => array(
+        '#theme' => 'links__node_operations',
+        '#links' => $operations,
+        '#attributes' => array('class' => array('links', 'inline')),
+      ),
+    );
+  }
+
+  $output .= theme_table(array(
+    'header' => $header,
+    'rows' => $rows,
+    'attributes' => array(),
+    'caption' => "20 trainees listed per page",
+    'options' => array(),
+    'colgroups' => array(),
+    'sticky' => false,
+    'empty' => "No trainees added yet"
+      )
+  );
+  $output .= theme(
+      'pager', array('tags' => array() ) );
+  $output .= l(t("Backk to Courses I bought"), "/user/$user->uid/courses-i-bought");
+  return $output;
+}
+
+
+function elearn_course_activate_form($form, &$form_state, $course_instance_id = NULL){
+  global $user;
+  if(isset($course_instance_id)){
+//    $course_holder_id = db_query("SELECT course_holder_id FROM {course_instance} WHERE ciid = :ciid", array(":ciid" => $course_instance_id))->fetchField();
+//    $date_bought = db_query("SELECT created FROM {course_instance} WHERE ciid = :ciid", array(":ciid" => $course_instance_id))->fetchField();
+//    $number_attendies = db_query("SELECT numb_attendies FROM {course_instance} WHERE ciid = :ciid", array(":ciid" => $course_instance_id))->fetchField();
+    $course_instanse = db_query("select * from {course_instance} where ciid = :ciid", array(":ciid" => $course_instance_id))->fetchObject();
+    $course_holder_id = $course_instanse->course_holder_id;
+    $date_bought = $course_instanse->created;
+    $number_attendies = $course_instanse->numb_attendies;
+    $curse_holder = node_load($course_holder_id);
+
+    }else {
+    return;
+  }
+  $days_since_creation = (time() - $date_bought)/(60*60*24); 
+  if ($course_instanse->activated ||  $days_since_creation > 365){
+    drupal_set_message(t("This course can not be activated"), "error");
+    return false;
+  }
+  
+  $form['title'] = array(
+    '#markup' => "<h2>". $curse_holder->title ."</h2>"
+  );
+  $form['created'] = array(
+    '#markup' => "<p>" . t("Date bought: "). format_date($date_bought,'short') . "</p>"
+  );
+  $form['numb_attendies'] = array(
+    '#markup' => "<p>" . t("Number of trainees: "). $number_attendies . "</p>"
+  );
+  $form['attension'] = array(
+    '#markup' => "<p class=\"error\">" . t("Please be aware that this action can NOT be undane or altered!"). "</p>"
+  );
+
+  $form['list_of_emails'] = array(
+    '#type' => 'textarea',
+    '#title' => t('List of !numb_attendies emails', array('!numb_attendies' => $number_attendies)),
+    '#description' => t('The list will be truncated to first !numb_attendies email. Emails will be checked if there is an account with it.' ." <br />"
+        . 'If there isn\'t an account then fist an account will be created. '." <br />"
+        . 'If there is an account the user will be enrolled for the course and a letter will be sent with the link to the course', array('!numb_attendies' => $number_attendies)),
+    '#required' => true,
+
+  );
+  $form['text_to_be_sent_by_email'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Text for the email that will be send to each enrolled user'),
+    '#required' => true,
+    "#default_value" => t("Hello [user:name],
+
+[company:name] has just granted you an access to a course [course:name]
+Please log in to the site and then  use the following url to view the course: [course:url]
+The course will be available to you until [course:end_date]
+
+Happy learning!
+--------------  
+[site:name] team"),
+    '#description' => t('You can use the following tokens: [user:name], [course:name], [course:url], [course:end_date]'),
+    
+  );
+//  $form['course_holder_id'] = array(
+//    '#type' => 'hidden',
+//    '#value' => $course_holder_id,
+//  );
+  $form['ciid'] = array(
+    '#type' => 'hidden',
+    '#value' => $course_instance_id,
+  );
+  
+  $form['actions'] = array('#type' => 'actions');
+  $form['actions']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Activate Course')
+  );
+  $form['actions']['cancel'] = array(
+    '#markup' => l(t('Cancel'), 'user/' . $user->uid . '/my-courses'),
+  );
+  
+  $form['#validate'][] = 'course_activate_validate';
+  $form['#submit'][] = 'course_activate_submit';
+
+  return $form;
+}
+
+
+function course_activate_validate($form, &$form_state){
+  $list_of_emails = _elearn_text_to_array($form_state['values']['list_of_emails']);
+  //var_dump($list_of_emails); exit;
+  foreach($list_of_emails as $email){
+    if (!valid_email_address($email)){
+      form_set_error('list_of_emails', t("%s is not a valid email address", array("%s"=>$email)));
+    }
+  }
+}
+
+
+
+function generate_username($name,$n){
+    $username = ($n != 0) ? $name . "_" .$n : $name;
+
+  //check if account with this username exists
+  $existing_username = db_query("SELECT name FROM {users} WHERE name = :name", array(":name" => $username))->fetchField();
+  if($existing_username){
+    $username = generate_username($name,++$n);
+  }
+  return $username;
+}
+
+//helper function 
+//
+function _elearn_text_to_array($text, $max_number=0){
+  $list_of_emails = preg_split( "/\r\n|(\s|&|,|;)/", $text );
+  $list_of_emails = array_filter($list_of_emails);
+  //trunk list to the$max_number value
+  if($max_number){
+    $list_of_emails = array_chunk($list_of_emails,$max_number,true);
+    $list_of_emails = $list_of_emails[0];
+  }
+  return $list_of_emails;
+}
+
+
+function course_activate_submit($form, &$form_state){
+  global $user, $base_url, $base_path ;
+  $course_instanse = db_query("select * from {course_instance} where ciid = :ciid", array(":ciid" => $form_state['values']['ciid']))->fetchObject();
+  if($course_instanse->uid != $user->uid){    
+    drupal_set_message(t("Error activating course."), 'error'); 
+    return false;
+  }
+  $days_since_creation = (time() - $course_instanse->created)/(60*60*24); 
+  if ($course_instanse->activated ||  $days_since_creation > 365){
+    drupal_set_message(t("This course can not be activated"), "error");
+    return false;
+  }
+  $course_holder_id = $course_instanse->course_holder_id;
+  $course_holder = node_load($course_holder_id);
+  $course = node_load($course_holder->field_reference_to_course['und'][0]['target_id']);
+  //a period (In seconds) set from trainer for course to be accessible by users
+  $course_period = $course->field_period['und'][0]['value'];
+  $end_date = time() + $course_period;
+  $id = db_update('course_instance')
+    ->fields(array(
+      'activated' => REQUEST_TIME,
+      'ended' => $end_date,
+    ))
+    ->condition('ciid', $form_state['values']['ciid'], '=')
+    ->execute();
+  $number_attendies = $course_instanse->numb_attendies;
+  
+  $list_of_emails = _elearn_text_to_array($form_state['values']['list_of_emails'], $number_attendies);
+
+  $users_to_be_created = array();
+  foreach($list_of_emails as $k => $email){
+      //check if account with this email exists
+      $uid = db_query("SELECT uid FROM {users} WHERE mail = :email", array(":email" => $email))->fetchField();
+      //make list of emails that don't have an account
+      if(!$uid){
+        $username =  explode('@', $email);
+        $username = generate_username($username[0],0);
+        $users_to_be_created[$username] = $email;
+      }
+  }
+  //for these that don't have an account - create it
+  $role_name = 'user';
+  $role = user_role_load_by_name($role_name);
+  foreach ($users_to_be_created as $name => $email) {  
+    //set up the user fields
+    $fields = array(
+      'name' => $name,
+      'mail' => $email,
+      'pass' => user_password(),
+      'status' => 1,
+      'roles' => array(
+          $role->rid => $role->name,
+      ),
+    );
+    //the first parameter is left blank so a new user is created
+    $user_account = user_save('', $fields);
+    //send an email
+    $params['account'] = $user_account;
+    $language = user_preferred_language($user_account);
+    $mail = drupal_mail('elearn', 'elearn_account_created', $user_account->mail, $language, $params);
+    if(empty($mail)) {
+      watchdog('error', 'Sending mail for ACCOUNT CREATED FAILD. User %name. Course %course', array('%name' => $user_account->mail));
+    }else{
+      watchdog('action', 'Sending mail for ACCOUNT CREATED created seccseeded. User %name. Course %course', array('%name' => $user_account->mail));
+    }
+  }
+  
+  //for all submited emails
+
+  $params['course_holder_name'] = $course_holder->title;
+  $params['course_holder_url'] = $base_url . $base_path . drupal_get_path_alias("node/".$course_holder->nid);
+
+  $params['course_end_date'] = format_date($end_date,'short');
+  
+  $profile = profile2_load_by_user($user->uid);
+  if ($profile['company']->field_company_full_name) {
+		$company_name = $profile['company']->field_company_full_name['und'][0]['value']; 
+	}
+  $params['company_name'] = $company_name;
+  $sent_emails = array();
+  //give access to Course holder, Course and Quiz  to the Company
+  // in fact Company already has access (see  elearn_commerce_payment_order_paid_in_full) 
+  // but this component will schedule the revoking too
+  $access_granted = rules_invoke_component('rules_comp_grant_access_to_course_holder_course_and_quiz', $course_holder, $course_instanse->uid);
+  //give access to Course holder, Course and Quiz  to all attendies
+  foreach($list_of_emails as $k => $email){
+    $user_account = user_load_by_mail($email);
+    $access_granted = rules_invoke_component('rules_comp_grant_access_to_course_holder_course_and_quiz', $course_holder, $user_account);
+    //write in the DB
+    //var_dump($access_granted); exit;
+    if ($access_granted !== false){
+        $id = db_insert('course_instance_enrolled')
+        ->fields(array(
+          'ciid' => $form_state['values']['ciid'] ,
+          'uid' => $user_account->uid,
+          'course_holder_id' => $course_holder_id,
+          'uid' => $user_account->uid,
+        ))
+        ->execute();
+
+        //send emal with course holder link
+        $language = user_preferred_language($user_account);
+        $params['account'] = $user_account; 
+        $params['body'] = $form_state['values']['text_to_be_sent_by_email'];
+        $mail = drupal_mail('elearn', 'elearn_access_granted', $user_account->mail, $language, $params);
+        if(empty($mail)) {
+          watchdog('error', 'Sending mail for ACCESS  GRANTED FAILD. User %name. Course %course', array('%name' => $user_account->mail, '%course' => $course_holder->title));
+        }else{
+          watchdog('action', 'Sending mail for ACCESS  GRANTED seccseeded. User %name. Course %course', array('%name' => $user_account->mail, '%course' => $course_holder->title));
+          $sent_emails[] = $user_account->mail;
+        }
+    }
+  }
+  drupal_set_message(t("Course activated. <br /> End date: !enddate. <br />Enrollerd users: !enrolled", array('!enddate' => format_date($end_date,'short'), '!enrolled' => implode(", ", $sent_emails)))); 
+
+}
+
+/**
+ * Implements hook_mail().
+ */
+function elearn_mail($key, &$message, $params) {//var_dump($params); exit;
+  $language = $message['language'];
+  $message['subject'] .= _elearn_mail_text($key . '_subject', $language, $params);
+  $message['body'][]   = _elearn_mail_text($key . '_body', $language, $params);
+}
+
+function _elearn_mail_text($key, $language = NULL, $variables = array(), $replace = TRUE) {
+    $langcode = isset($language) ? $language->language : NULL;
+    switch ($key) {
+      case 'elearn_account_created_subject':
+        $text = t('Account details for [user:name] at [site:name]', array(), array('langcode' => $langcode));
+        break;
+      case 'elearn_account_created_body':
+        $text = t("Hello [user:name],
+
+An account has been creted for you at [site:name] . You may now log in by clicking this link or copying and pasting it to your browser:
+
+[user:one-time-login-url]
+
+This link can only be used once to log in and will lead you to a page where you can set your password.
+
+After setting your password, you will be able to log in at [site:login-url] in the future using:
+
+username: [user:name]
+password: Your password
+
+--  [site:name] team", array(), array('langcode' => $langcode));        
+        break;
+      case 'elearn_access_granted_subject':
+        $text = t('You have been granted access to a course at [site:name]', array(), array('langcode' => $langcode));
+        break;
+      case 'elearn_access_granted_body':
+        $text = $variables['body'];
+//        $text = t("Hello [user:name],
+//
+//[company:name] has just granted you an access to a course [course:name]
+//Please log in to the site and then  use the fillowing url to view the course: [course:url]
+//The course will be available to you until [course:end_date]
+//
+//Happy learning!
+//--------------  
+//[site:name] team", array(), array('langcode' => $langcode));        
+        break;
+    }  
+    
+    if ($replace) {
+    // We do not sanitize the token replacement, since the output of this
+    // replacement is intended for an e-mail message, not a web browser.
+    return token_replace($text, $variables, array('language' => $language, 'callback' => 'elearn_mail_tokens', 'sanitize' => FALSE, 'clear' => TRUE));
+  }
+  return $text;
+}
+
+function elearn_mail_tokens(&$replacements, $data, $options) {
+  if (isset($data['account'])) {
+    $replacements['[user:one-time-login-url]'] = user_pass_reset_url($data['account']);
+    $replacements['[user:cancel-url]'] = user_cancel_url($data['account']);
+    $replacements['[user:name]'] = $data['account']->name;
+  }
+  if (isset($data['course_holder_name'])) {
+    $replacements['[course:name]'] = $data['course_holder_name'];
+  }
+  if (isset($data['company_name'])) {
+    $replacements['[company:name]'] = $data['company_name'];
+  }else{
+    $replacements['[company:name]'] = t('A company');
+  }
+  if (isset($data['course_holder_url'])) {
+    $replacements['[course:url]'] = $data['course_holder_url'];
+  }
+  if (isset( $data['course_end_date'])) {
+    $replacements['[course:end_date]'] =  $data['course_end_date'];
+  }
+}
+
+
+/**
+ * Implements hook_exit().
+ * Gathers statistics for page accesses.
+ */
+function elearn_exit() {
+  global $user;
+  // We are counting content views.
+  if (in_array("user", $user->roles) && arg(0) == 'node' && is_numeric(arg(1)) && arg(2) == NULL) {
+   $node = node_load(arg(1));
+   if ($node->type == 'course_holder'){
+    // A node has been viewed, from user so update the node's counters.
+//    db_merge('course_instance_enrolled')
+//      ->key(array('uid' => $user->uid, 'course_holder_id' => arg(1)))
+//      ->fields(array(
+//        'first_accessed' => REQUEST_TIME,
+//        'last_accessed' => REQUEST_TIME,
+//      ))
+//      ->expression('last_accessed', REQUEST_TIME)
+//      ->execute();
+     
+    $query = db_select('course_instance_enrolled')
+      ->condition('uid', $user->uid)
+      ->condition('course_holder_id', arg(1))
+      ->isNotNull('first_accessed')
+      ;
+    $num_rows = $query->countQuery()->execute()->fetchField();
+    if ($num_rows > 0) {
+      db_update('course_instance_enrolled')
+        ->fields(array(
+        'last_accessed' => REQUEST_TIME,
+      ))
+        ->condition('uid', $user->uid)
+        ->condition('course_holder_id', arg(1))
+        ->execute();
+    }
+    else {
+      db_update('course_instance_enrolled')
+        ->fields(array(
+        'first_accessed' => REQUEST_TIME,
+        'last_accessed' => REQUEST_TIME,
+      ))
+        ->condition('uid', $user->uid)
+        ->condition('course_holder_id', arg(1))
+        ->execute();  
+    }
+   }
+  }
+}
+
+
+
+function elearn_field_widget_addressfield_standard_form_alter(&$element, &$form_state, $context) { 
+    $element['#type'] = 'container'; 
+}
+
